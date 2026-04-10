@@ -29,7 +29,7 @@ export default function MatchPage({
   return (
     <div className="min-h-dvh bg-white flex flex-col">
       {/* Back */}
-      <div className="px-5 pt-12 pb-4 flex items-center gap-3">
+      <div className="px-5 pb-3 flex items-center gap-3" style={{ paddingTop: "max(16px, env(safe-area-inset-top))" }}>
         <button
           onClick={() => router.push("/requests")}
           className="flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
@@ -41,12 +41,12 @@ export default function MatchPage({
         </button>
       </div>
 
-      <div className="flex-1 px-4 py-8 flex flex-col gap-6 max-w-sm mx-auto w-full">
+      <div className="flex-1 px-4 py-4 flex flex-col gap-4 max-w-sm mx-auto w-full">
         {/* Celebration */}
-        <div className="text-center py-6">
-          <div className="text-6xl mb-4">🎉</div>
-          <h1 className="text-2xl font-bold text-[var(--text)]">매칭 성사!</h1>
-          <p className="mt-2 text-base text-[var(--text-muted)] leading-relaxed">
+        <div className="text-center py-3">
+          <div className="text-4xl mb-3">🎉</div>
+          <h1 className="text-xl font-bold text-[var(--text)]">매칭 성사!</h1>
+          <p className="mt-1.5 text-sm text-[var(--text-muted)] leading-relaxed">
             <span className="text-[var(--text)] font-semibold">{matchName}</span>님이
             <br />소개팅을 수락했습니다
           </p>
@@ -101,8 +101,8 @@ export default function MatchPage({
 
         {/* CTA */}
         {paid ? (
-          <div className="flex items-center justify-center gap-2 w-full h-14 rounded-2xl bg-green-50 text-green-700 font-semibold text-sm border border-green-200">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <div className="flex items-center justify-center gap-2 w-full h-12 rounded-2xl bg-green-50 text-green-700 font-semibold text-sm border border-green-200">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
             확인했습니다. 곧 연락드릴게요
@@ -110,7 +110,7 @@ export default function MatchPage({
         ) : (
           <button
             onClick={handlePaid}
-            className="w-full h-14 rounded-2xl bg-[var(--primary)] text-white text-base font-semibold hover:bg-[#1F2937] active:scale-[0.98] transition-all shadow-sm "
+            className="w-full h-12 rounded-2xl bg-[var(--primary)] text-white text-sm font-semibold hover:bg-[#1F2937] active:scale-[0.98] transition-all shadow-sm"
           >
             입금 완료 알리기
           </button>

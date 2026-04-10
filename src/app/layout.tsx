@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import AgentationToolbar from "@/components/AgentationToolbar";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -26,7 +27,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className={`${inter.variable} h-full`}>
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        {children}
+        <AgentationToolbar />
+      </body>
     </html>
   );
 }

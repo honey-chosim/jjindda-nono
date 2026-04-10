@@ -160,7 +160,7 @@ export default function ProfileDetailPage({
         {/* 자기소개 */}
         <section>
           <h2 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">
-            자기소개
+            자기소개 및 이상형
           </h2>
           <div className="bg-[var(--bg)] rounded-2xl p-4">
             <p className="text-sm text-[var(--text)] leading-relaxed">

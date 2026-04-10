@@ -48,8 +48,9 @@ export default function ProfilesPage() {
     <div className="min-h-dvh bg-white pb-24">
       {/* Header — fixed */}
       <div
-        className="fixed top-0 left-0 right-0 z-30 px-5 pt-12 pb-4"
+        className="fixed top-0 left-0 right-0 z-30 px-5 pb-4"
         style={{
+          paddingTop: "max(16px, env(safe-area-inset-top))",
           background: "rgba(255,255,255,0.92)",
           backdropFilter: "blur(20px) saturate(180%)",
           WebkitBackdropFilter: "blur(20px) saturate(180%)",
@@ -62,7 +63,7 @@ export default function ProfilesPage() {
       </div>
 
       {/* Grid — offset for fixed header */}
-      <div className="px-4 pt-[100px]">
+      <div className="px-4 pt-[84px]">
         {visible.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 text-center">
             <p className="text-[15px] font-semibold text-[#111827]">프로필이 없습니다</p>

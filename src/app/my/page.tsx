@@ -28,8 +28,9 @@ export default function MyPage() {
     <div className="min-h-dvh bg-white pb-28">
       {/* Header */}
       <div
-        className="fixed top-0 left-0 right-0 z-30 px-5 pt-12 pb-4"
+        className="fixed top-0 left-0 right-0 z-30 px-5 pb-4"
         style={{
+          paddingTop: "max(16px, env(safe-area-inset-top))",
           background: "rgba(255,255,255,0.88)",
           backdropFilter: "blur(20px) saturate(180%)",
           WebkitBackdropFilter: "blur(20px) saturate(180%)",
@@ -39,7 +40,7 @@ export default function MyPage() {
         <h1 className="text-[28px] font-black text-[#111827] tracking-[-0.03em]">MY</h1>
       </div>
 
-      <div className="px-4 pt-[100px] flex flex-col gap-4">
+      <div className="px-4 pt-[84px] flex flex-col gap-4">
         {/* Profile Card */}
         <Card padding="none" className="overflow-hidden">
           <div className="flex items-center gap-4 p-5">
