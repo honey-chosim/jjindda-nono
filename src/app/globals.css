@@ -31,7 +31,7 @@ body {
 }
 
 .pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 20px);
 }
 
 button,
