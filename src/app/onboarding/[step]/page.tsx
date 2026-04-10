@@ -502,27 +502,31 @@ function Step7() {
   const router = useRouter();
   const { bio, setBio } = useOnboardingStore();
   const MAX = 300;
+  const MIN = 20;
 
   return (
     <div className="px-4 pt-6 pb-28 flex flex-col gap-6">
       <div>
-        <h2 className="text-[28px] font-black text-[#111827] tracking-[-0.02em] leading-tight">자기소개</h2>
-        <p className="text-sm text-[#6B7280] mt-1">상대방에게 나를 소개해주세요</p>
+        <h2 className="text-[28px] font-black text-[#111827] tracking-[-0.02em] leading-tight">자기소개 및 이상형</h2>
+        <p className="text-sm text-[#6B7280] mt-1">나는 어떤 사람인지, 어떤 분을 만나고 싶은지 써주세요</p>
       </div>
 
-      <Field label="자기소개" hint={`${bio.length}/${MAX}자`}>
+      <Field label="자기소개 및 이상형" hint={`${bio.length}/${MAX}자 · 최소 ${MIN}자 이상`}>
         <textarea
           value={bio}
           onChange={(e) => setBio(e.target.value.slice(0, MAX))}
-          placeholder="어떤 사람인지, 어떤 만남을 원하는지 자유롭게 써주세요"
+          placeholder={"예) 여의도에서 일하는 30대 직장인입니다. 취미는 테니스와 독서예요. 밝고 유머 있는 분이면 좋겠어요 :)"}
           rows={8}
-          className="w-full px-4 py-3 rounded-xl border border-[var(--border)] text-sm leading-relaxed resize-none focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] placeholder:text-[#6B7280]"
+          className="w-full px-4 py-3 rounded-2xl bg-[#F3F4F6] text-[15px] text-[#111827] leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-[#111827] focus:bg-white transition-all border border-transparent placeholder:text-[#9CA3AF]"
         />
+        {bio.length > 0 && bio.length < MIN && (
+          <p className="text-xs text-[#DC2626]">{MIN - bio.length}자 더 입력해주세요</p>
+        )}
       </Field>
 
       <ContinueButton
         onClick={() => router.push("/onboarding/8")}
-        disabled={bio.length < 20}
+        disabled={bio.length < MIN}
       />
     </div>
   );
