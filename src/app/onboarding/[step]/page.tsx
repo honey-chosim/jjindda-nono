@@ -1,9 +1,12 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/store/onboardingStore";
 import { cn } from "@/lib/utils";
+import { getSupabaseClient } from "@/lib/supabase";
+import { createProfile } from "@/services/profileService";
+import { consumeInviteCode } from "@/services/inviteService";
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -201,22 +204,52 @@ function Step2() {
   const [codeSent, setCodeSent] = useState(false);
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function sendCode() {
+  async function sendCode() {
     const digits = phone.replace(/[-\s]/g, "");
     if (!digits.startsWith("010") || digits.length !== 11) {
       setError("010으로 시작하는 11자리 번호를 입력해주세요");
       return;
     }
     setError("");
-    setCodeSent(true);
+    setLoading(true);
+    try {
+      const supabase = getSupabaseClient();
+      // Supabase phone auth requires E.164 format: +8210XXXXXXXX
+      const e164 = "+82" + digits.slice(1);
+      const { error: otpError } = await supabase.auth.signInWithOtp({ phone: e164 });
+      if (otpError) throw otpError;
+      setCodeSent(true);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "인증번호 발송에 실패했습니다");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function verify() {
-    if (code === "000000") {
+  async function verify() {
+    if (!code || code.length !== 6) {
+      setError("6자리 인증번호를 입력해주세요");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    try {
+      const supabase = getSupabaseClient();
+      const digits = phone.replace(/[-\s]/g, "");
+      const e164 = "+82" + digits.slice(1);
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        phone: e164,
+        token: code,
+        type: "sms",
+      });
+      if (verifyError) throw verifyError;
       router.push("/onboarding/3");
-    } else {
-      setError("인증번호가 올바르지 않습니다");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "인증번호가 올바르지 않습니다");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -243,9 +276,10 @@ function Step2() {
           <button
             type="button"
             onClick={sendCode}
-            className="flex-shrink-0 h-12 px-4 rounded-xl bg-[var(--primary)] text-white text-sm font-semibold whitespace-nowrap hover:bg-[#1F2937] transition-colors"
+            disabled={loading || !phone}
+            className="flex-shrink-0 h-12 px-4 rounded-xl bg-[var(--primary)] text-white text-sm font-semibold whitespace-nowrap hover:bg-[#1F2937] transition-colors disabled:opacity-40"
           >
-            인증번호 받기
+            {loading && !codeSent ? "발송 중..." : "인증번호 받기"}
           </button>
         </div>
         {error && !codeSent && (
@@ -254,7 +288,7 @@ function Step2() {
       </Field>
 
       {codeSent && (
-        <Field label="인증번호" hint="테스트: 000000">
+        <Field label="인증번호">
           <TextInput
             value={code}
             onChange={(v) => {
@@ -265,15 +299,15 @@ function Step2() {
             type="text"
           />
           {error && (
-            <p className="text-xs text-[var(--danger)]">{error}</p>
+            <p className="text-xs text-[#DC2626]">{error}</p>
           )}
         </Field>
       )}
 
       <ContinueButton
         onClick={codeSent ? verify : sendCode}
-        disabled={!phone}
-        label={codeSent ? "인증 완료" : "인증번호 받기"}
+        disabled={loading || !phone}
+        label={loading ? "처리 중..." : codeSent ? "인증 완료" : "인증번호 받기"}
       />
     </div>
   );

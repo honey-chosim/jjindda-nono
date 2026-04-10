@@ -4,6 +4,7 @@ import { create } from "zustand";
 
 interface OnboardingState {
   phone: string;
+  inviteCode: string;
   name: string;
   gender: "male" | "female" | "";
   birthYear: number;
@@ -30,6 +31,7 @@ interface OnboardingState {
   photos: string[];
 
   setPhone: (phone: string) => void;
+  setInviteCode: (code: string) => void;
   setName: (name: string) => void;
   setGender: (gender: "male" | "female") => void;
   setBirthYear: (year: number) => void;
@@ -59,6 +61,7 @@ interface OnboardingState {
 
 export const useOnboardingStore = create<OnboardingState>((set) => ({
   phone: "",
+  inviteCode: "",
   name: "",
   gender: "",
   birthYear: 1995,
@@ -85,6 +88,7 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
   photos: [],
 
   setPhone: (phone) => set({ phone }),
+  setInviteCode: (inviteCode) => set({ inviteCode }),
   setName: (name) => set({ name }),
   setGender: (gender) => set({ gender }),
   setBirthYear: (birthYear) => set({ birthYear }),

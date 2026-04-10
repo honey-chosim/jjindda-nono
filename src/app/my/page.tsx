@@ -160,7 +160,7 @@ export default function MyPage() {
                 <Card key={req.id} padding="sm">
                   <div className="flex items-center justify-between gap-3 px-2 py-1">
                     <div>
-                      <p className="text-sm font-semibold text-[var(--text)]">{req.target_id}</p>
+                      <p className="text-sm font-semibold text-[var(--text)]">{(req as { target?: { name: string } | null }).target?.name ?? "알 수 없음"}</p>
                       <p className="text-xs text-[var(--text-muted)] mt-0.5">
                         {new Date(req.created_at).toLocaleDateString("ko-KR", {
                           month: "long",

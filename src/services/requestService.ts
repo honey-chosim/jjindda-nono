@@ -43,16 +43,16 @@ export async function sendDatingRequest(
   return data as DatingRequest
 }
 
-export async function getSentRequests(userId: string): Promise<DatingRequest[]> {
+export async function getSentRequests(userId: string) {
   const supabase = getRawSupabaseClient()
   const { data, error } = await supabase
     .from('dating_requests')
-    .select('*')
+    .select(`*, target:profiles!dating_requests_target_id_fkey(id, name)`)
     .eq('requester_id', userId)
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return (data ?? []) as DatingRequest[]
+  return (data ?? []) as (DatingRequest & { target: { id: string; name: string } | null })[]
 }
 
 export async function getReceivedRequests(userId: string): Promise<RequestWithRequester[]> {

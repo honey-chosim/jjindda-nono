@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { mockRequests } from "@/data/mock-requests";
-
-const pendingCount = mockRequests.filter((r) => r.status === "pending").length;
+import { getSupabaseClient } from "@/lib/supabase";
 
 function IconSearch({ active }: { active: boolean }) {
   return (
@@ -44,12 +43,30 @@ function IconPerson({ active }: { active: boolean }) {
 
 const navItems = [
   { href: "/profiles", label: "탐색", Icon: IconSearch },
-  { href: "/requests", label: "요청", Icon: IconHeart, badge: pendingCount },
+  { href: "/requests", label: "요청", Icon: IconHeart },
   { href: "/my", label: "MY", Icon: IconPerson },
 ];
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    async function fetchPending() {
+      try {
+        const supabase = getSupabaseClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { count } = await supabase
+          .from("dating_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("target_id", user.id)
+          .eq("status", "pending");
+        setPendingCount(count ?? 0);
+      } catch {}
+    }
+    fetchPending();
+  }, [pathname]);
 
   return (
     <nav
@@ -62,7 +79,8 @@ export default function BottomNav() {
       }}
     >
       <div className="max-w-lg mx-auto flex items-stretch">
-        {navItems.map(({ href, label, Icon, badge }) => {
+        {navItems.map(({ href, label, Icon }) => {
+          const badge = href === "/requests" ? pendingCount : 0;
           const active = pathname.startsWith(href);
           return (
             <Link

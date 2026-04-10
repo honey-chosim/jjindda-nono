@@ -2,14 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useOnboardingStore } from "@/store/onboardingStore";
+import { validateInviteCode } from "@/services/inviteService";
 
 export default function LandingPage() {
   const router = useRouter();
+  const setInviteCode = useOnboardingStore((s) => s.setInviteCode);
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (code.length !== 8) {
       setError("유효하지 않은 코드입니다");
@@ -17,10 +20,19 @@ export default function LandingPage() {
     }
     setError("");
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const valid = await validateInviteCode(code);
+      if (!valid) {
+        setError("유효하지 않은 초대 코드입니다");
+        setLoading(false);
+        return;
+      }
+      setInviteCode(code);
       router.push("/onboarding/2");
-    }, 500);
+    } catch {
+      setError("코드 확인 중 오류가 발생했습니다");
+      setLoading(false);
+    }
   }
 
   return (
