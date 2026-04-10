@@ -203,8 +203,9 @@ function Step2() {
   const [error, setError] = useState("");
 
   function sendCode() {
-    if (phone.replace(/-/g, "").length < 10) {
-      setError("올바른 전화번호를 입력해주세요");
+    const digits = phone.replace(/[-\s]/g, "");
+    if (!digits.startsWith("010") || digits.length !== 11) {
+      setError("010으로 시작하는 11자리 번호를 입력해주세요");
       return;
     }
     setError("");
@@ -247,6 +248,9 @@ function Step2() {
             인증번호 받기
           </button>
         </div>
+        {error && !codeSent && (
+          <p className="text-xs text-[#DC2626] mt-1">{error}</p>
+        )}
       </Field>
 
       {codeSent && (
@@ -338,10 +342,10 @@ function Step4() {
 
       <Field label="키">
         <TextInput
-          value={String(height)}
+          value={height === 0 ? "" : String(height)}
           onChange={(v) => setHeight(Number(v) || 0)}
           type="number"
-          placeholder="170"
+          placeholder="키 입력"
           suffix="cm"
         />
       </Field>
@@ -534,10 +538,10 @@ function Step6() {
 
       <Field label="선호 최소 키">
         <TextInput
-          value={String(preferredHeightMin)}
+          value={preferredHeightMin === 0 ? "" : String(preferredHeightMin)}
           onChange={(v) => setPreferredHeightMin(Number(v) || 0)}
           type="number"
-          placeholder="170"
+          placeholder="키 입력 (선택)"
           suffix="cm 이상"
         />
       </Field>
