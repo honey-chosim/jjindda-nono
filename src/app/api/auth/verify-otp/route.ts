@@ -8,10 +8,9 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   const { phone, code } = await req.json()
-
   const digits = phone.replace(/[-\s]/g, '')
 
-  // Fetch OTP from DB
+  // 1. Verify OTP
   const { data: otpRow, error: fetchError } = await supabaseAdmin
     .from('phone_otps')
     .select('code, expires_at')
@@ -21,33 +20,32 @@ export async function POST(req: NextRequest) {
   if (fetchError || !otpRow) {
     return NextResponse.json({ error: '인증번호를 먼저 요청해주세요' }, { status: 400 })
   }
-
   if (new Date(otpRow.expires_at) < new Date()) {
     return NextResponse.json({ error: '인증번호가 만료됐습니다. 다시 요청해주세요' }, { status: 400 })
   }
-
   if (otpRow.code !== code) {
     return NextResponse.json({ error: '인증번호가 올바르지 않습니다' }, { status: 400 })
   }
 
-  // OTP valid — delete it
+  // 2. Consume OTP
   await supabaseAdmin.from('phone_otps').delete().eq('phone', digits)
 
-  // Find or create Supabase user by phone (stored as synthetic email)
+  // 3. Find or create user — phone stored as synthetic email
   const syntheticEmail = `${digits}@jjinda.nono`
 
+  // Check profiles table first (fastest lookup, no full user list scan)
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('id')
+    .eq('phone', digits)
+    .maybeSingle()
+
   let userId: string
-  const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers()
 
-  if (listError) {
-    return NextResponse.json({ error: '서버 오류가 발생했습니다' }, { status: 500 })
-  }
-
-  const existing = users.find((u) => u.email === syntheticEmail)
-
-  if (existing) {
-    userId = existing.id
+  if (profile) {
+    userId = profile.id
   } else {
+    // New user
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: syntheticEmail,
       email_confirm: true,
@@ -59,12 +57,11 @@ export async function POST(req: NextRequest) {
     userId = newUser.user.id
   }
 
-  // Generate magic link token for this user → client uses it to set session
+  // 4. Generate sign-in token for this user
   const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
     type: 'magiclink',
     email: syntheticEmail,
   })
-
   if (linkError || !linkData) {
     return NextResponse.json({ error: '세션 생성에 실패했습니다' }, { status: 500 })
   }
@@ -73,6 +70,5 @@ export async function POST(req: NextRequest) {
     ok: true,
     userId,
     tokenHash: linkData.properties.hashed_token,
-    email: syntheticEmail,
   })
 }
