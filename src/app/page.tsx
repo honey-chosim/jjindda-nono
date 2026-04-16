@@ -101,6 +101,13 @@ export default function LandingPage() {
               )}
             </button>
           </form>
+
+          <p className="text-[13px] text-[#9CA3AF] text-center mt-4">
+            이미 계정이 있으신가요?{" "}
+            <a href="/login" className="text-[#111827] font-medium underline-offset-2 hover:underline">
+              로그인하기
+            </a>
+          </p>
         </div>
       </div>
 
