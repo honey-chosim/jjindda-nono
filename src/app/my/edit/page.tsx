@@ -467,7 +467,12 @@ export default function EditProfilePage() {
               maxLength={300}
               className="w-full px-4 py-3 rounded-2xl bg-[#F3F4F6] text-[15px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111827] focus:bg-white transition-all border border-transparent resize-none"
             />
-            <p className="text-xs text-[#9CA3AF] text-right">{bio.length}/300</p>
+            <div className="flex justify-between">
+              {bio.length > 0 && bio.length < 20 ? (
+                <p className="text-xs text-[#DC2626]">{20 - bio.length}자 더 입력해주세요</p>
+              ) : <span />}
+              <p className="text-xs text-[#9CA3AF]">{bio.length}/300</p>
+            </div>
           </div>
         </section>
 
@@ -546,7 +551,7 @@ export default function EditProfilePage() {
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || uploading}
+            disabled={saving || uploading || bio.length < 20}
             className="w-full h-[56px] rounded-2xl bg-[#111827] text-white text-[16px] font-semibold tracking-[-0.01em] active:scale-[0.98] transition-transform disabled:opacity-25 disabled:cursor-not-allowed"
           >
             {saving ? "저장 중..." : "저장하기"}
