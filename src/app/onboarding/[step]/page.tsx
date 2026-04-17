@@ -257,6 +257,20 @@ function Step2() {
       });
       if (otpError) throw otpError;
 
+      // 이미 온보딩 완료된 유저면 프로필로 바로 이동
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("onboarding_completed")
+          .eq("id", user.id)
+          .maybeSingle() as { data: { onboarding_completed: boolean } | null };
+        if (profile?.onboarding_completed) {
+          router.push("/profiles");
+          return;
+        }
+      }
+
       router.push("/onboarding/3");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "인증에 실패했습니다");
