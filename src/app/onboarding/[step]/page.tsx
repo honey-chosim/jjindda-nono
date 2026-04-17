@@ -598,7 +598,7 @@ function Step7() {
 
 async function compressImage(file: File, maxPx = 1200, quality = 0.85): Promise<Blob> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
+    const img = document.createElement("img");
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);

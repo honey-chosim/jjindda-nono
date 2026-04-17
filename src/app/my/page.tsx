@@ -132,7 +132,7 @@ export default function MyPage() {
 
           <div className="border-t border-[var(--border)] p-4">
             <Link
-              href="/onboarding/3"
+              href="/my/edit"
               className="flex items-center justify-center gap-2 w-full h-11 rounded-xl border border-[var(--border)] text-sm font-medium text-[var(--text)] hover:bg-gray-50 transition-colors"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
