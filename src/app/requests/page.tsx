@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/layout/BottomNav";
 import RequestCard from "@/components/requests/RequestCard";
+import CountdownTimer from "@/components/ui/CountdownTimer";
 import { getReceivedRequests, getSentRequests } from "@/services/requestService";
 import { getSupabaseClient } from "@/lib/supabase";
 import type { RequestWithRequester, DatingRequest } from "@/types/database";
@@ -24,6 +25,10 @@ const statusColor: Record<string, string> = {
   rejected: "bg-[#FEE2E2] text-[#991B1B]",
   expired: "bg-[#F3F4F6] text-[#6B7280]",
 };
+
+function expiresAt(createdAt: string): string {
+  return new Date(new Date(createdAt).getTime() + 24 * 60 * 60 * 1000).toISOString();
+}
 
 export default function RequestsPage() {
   const [tab, setTab] = useState<"received" | "sent">("received");
@@ -52,11 +57,19 @@ export default function RequestsPage() {
     fetchAll();
   }, []);
 
+  const handleRequestExpired = useCallback((id: string) => {
+    setReceived((prev) =>
+      prev.map((r) => r.id === id ? { ...r, status: "expired" as const } : r)
+    );
+    setSent((prev) =>
+      prev.map((r) => r.id === id ? { ...r, status: "expired" as const } : r)
+    );
+  }, []);
+
   const pendingCount = received.filter((r) => r.status === "pending").length;
 
   return (
     <div className="min-h-dvh bg-white pb-28">
-      {/* Header */}
       <div
         className="sticky top-0 z-30 px-5 pt-4 pb-0"
         style={{
@@ -75,7 +88,6 @@ export default function RequestsPage() {
           )}
         </div>
 
-        {/* Tabs */}
         <div className="flex gap-0">
           {(["received", "sent"] as const).map((t) => (
             <button
@@ -108,7 +120,11 @@ export default function RequestsPage() {
           ) : (
             <div className="flex flex-col gap-3">
               {received.map((request) => (
-                <RequestCard key={request.id} request={request} />
+                <RequestCard
+                  key={request.id}
+                  request={request}
+                  onExpired={() => handleRequestExpired(request.id)}
+                />
               ))}
             </div>
           )
@@ -129,6 +145,14 @@ export default function RequestsPage() {
                     <p className="text-xs text-[#9CA3AF] mt-0.5">
                       {new Date(req.created_at).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} 신청
                     </p>
+                    {req.status === "pending" && (
+                      <CountdownTimer
+                        expiresAt={expiresAt(req.created_at)}
+                        onExpired={() => handleRequestExpired(req.id)}
+                        compact
+                        className="mt-1"
+                      />
+                    )}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className={cn("text-xs font-semibold px-2.5 py-1 rounded-full", statusColor[req.status])}>

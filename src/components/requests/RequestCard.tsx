@@ -1,13 +1,19 @@
 import Link from "next/link";
 import Image from "next/image";
 import Button from "@/components/ui/Button";
+import CountdownTimer from "@/components/ui/CountdownTimer";
 import type { RequestWithRequester } from "@/types/database";
 
 interface RequestCardProps {
   request: RequestWithRequester;
+  onExpired?: () => void;
 }
 
-export default function RequestCard({ request }: RequestCardProps) {
+function expiresAt(createdAt: string): string {
+  return new Date(new Date(createdAt).getTime() + 24 * 60 * 60 * 1000).toISOString();
+}
+
+export default function RequestCard({ request, onExpired }: RequestCardProps) {
   const requester = request.requester;
   if (!requester) return null;
   const currentYear = new Date().getFullYear();
@@ -43,6 +49,14 @@ export default function RequestCard({ request }: RequestCardProps) {
           })}{" "}
           요청
         </p>
+        {request.status === "pending" && (
+          <CountdownTimer
+            expiresAt={expiresAt(request.created_at)}
+            onExpired={onExpired}
+            compact
+            className="mt-1"
+          />
+        )}
       </div>
       <Link href={`/requests/${request.id}`} className="flex-shrink-0">
         <Button size="sm" variant="outline">
