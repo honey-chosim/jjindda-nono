@@ -32,12 +32,14 @@ export async function POST(req: NextRequest) {
 
   const requesterName = profiles?.find((p) => p.id === user.id)?.name ?? '상대방'
 
-  notifyUser({
-    userId: targetId,
-    templateKey: 'request_received',
-    referenceId: requestId,
-    vars: { requester_name: requesterName, request_id: requestId },
-  }).catch(console.error)
+  try {
+    await notifyUser({
+      userId: targetId,
+      templateKey: 'request_received',
+      referenceId: requestId,
+      vars: { requester_name: requesterName, request_id: requestId },
+    })
+  } catch (e) { console.error('request_received SMS failed:', e) }
 
   return NextResponse.json({ requestId })
 }

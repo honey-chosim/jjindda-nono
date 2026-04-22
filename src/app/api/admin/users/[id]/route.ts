@@ -36,12 +36,16 @@ export async function PATCH(
       .eq('id', userId)
       .single()
     if (data?.is_verified && data?.verified_by_referrer) {
-      notifyUser({
-        userId,
-        templateKey: 'profile_approved',
-        referenceId: userId,
-        vars: {},
-      }).catch(console.error)
+      try {
+        await notifyUser({
+          userId,
+          templateKey: 'profile_approved',
+          referenceId: userId,
+          vars: {},
+        })
+      } catch (e) {
+        console.error('profile_approved SMS failed:', e)
+      }
     }
   }
 
@@ -79,13 +83,17 @@ export async function PATCH(
     } else {
       // 승인 취소 시엔 기존 profile_approved 이력 삭제 (재승인 시 재발송)
       await clearApprovedSmsHistory(id)
-      // 거절 SMS는 즉시 발송
-      notifyUser({
-        userId: id,
-        templateKey: 'profile_rejected',
-        referenceId: id,
-        vars: trimmedNote ? { reason: trimmedNote } : {},
-      }).catch(console.error)
+      // 거절 SMS는 즉시 발송 (await — serverless 종료 전 완료 보장)
+      try {
+        await notifyUser({
+          userId: id,
+          templateKey: 'profile_rejected',
+          referenceId: id,
+          vars: trimmedNote ? { reason: trimmedNote } : {},
+        })
+      } catch (e) {
+        console.error('profile_rejected SMS failed:', e)
+      }
     }
 
     return Response.json(data)

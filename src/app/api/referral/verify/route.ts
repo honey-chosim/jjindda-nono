@@ -48,12 +48,14 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (profile?.is_verified && profile?.verified_by_referrer) {
-      notifyUser({
-        userId: inviteeId,
-        templateKey: 'profile_approved',
-        referenceId: inviteeId,
-        vars: {},
-      }).catch(console.error)
+      try {
+        await notifyUser({
+          userId: inviteeId,
+          templateKey: 'profile_approved',
+          referenceId: inviteeId,
+          vars: {},
+        })
+      } catch (e) { console.error('profile_approved SMS failed:', e) }
     }
   } else {
     // 친구가 거절로 돌리면 기존 승인 SMS 이력 삭제 → 재승인 시 재발송 가능

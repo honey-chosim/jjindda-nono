@@ -43,12 +43,14 @@ export async function POST(req: NextRequest) {
     const targetProfile = profiles?.find((p) => p.id === drRow.target_id)
 
     // Notify requester (A) that B accepted — SMS #3
-    notifyUser({
-      userId: drRow.requester_id,
-      templateKey: 'match_accepted',
-      referenceId: matchId,
-      vars: { target_name: targetProfile?.name ?? '상대방', match_id: matchId },
-    }).catch(console.error)
+    try {
+      await notifyUser({
+        userId: drRow.requester_id,
+        templateKey: 'match_accepted',
+        referenceId: matchId,
+        vars: { target_name: targetProfile?.name ?? '상대방', match_id: matchId },
+      })
+    } catch (e) { console.error('match_accepted SMS failed:', e) }
   }
 
   return NextResponse.json({ matchId })

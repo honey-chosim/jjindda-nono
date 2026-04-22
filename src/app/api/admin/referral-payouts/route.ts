@@ -69,12 +69,14 @@ export async function PATCH(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   if (status === 'paid' && data) {
-    notifyUser({
-      userId: data.user_id,
-      templateKey: 'referral_payout_paid',
-      referenceId: id,
-      vars: { amount: data.amount_requested },
-    }).catch(console.error)
+    try {
+      await notifyUser({
+        userId: data.user_id,
+        templateKey: 'referral_payout_paid',
+        referenceId: id,
+        vars: { amount: data.amount_requested },
+      })
+    } catch (e) { console.error('referral_payout_paid SMS failed:', e) }
   }
 
   return NextResponse.json(data)

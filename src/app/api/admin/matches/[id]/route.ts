@@ -71,10 +71,12 @@ export async function PATCH(
         .eq('id', id)
         .single()
       if (match) {
-        Promise.all([
-          notifyUser({ userId: match.user1_id, templateKey: 'match_paid', referenceId: id, vars: { match_id: id } }),
-          notifyUser({ userId: match.user2_id, templateKey: 'match_paid', referenceId: id, vars: { match_id: id } }),
-        ]).catch(console.error)
+        try {
+          await Promise.all([
+            notifyUser({ userId: match.user1_id, templateKey: 'match_paid', referenceId: id, vars: { match_id: id } }),
+            notifyUser({ userId: match.user2_id, templateKey: 'match_paid', referenceId: id, vars: { match_id: id } }),
+          ])
+        } catch (e) { console.error('match_paid SMS failed:', e) }
       }
     } else {
       // Simple enum transition
