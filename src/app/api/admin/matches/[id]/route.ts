@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 import type { PaymentStatus } from '@/types/database'
+import { notifyUser } from '@/services/notificationService'
 
 function getAdminClient() {
   return createClient(
@@ -62,6 +63,18 @@ export async function PATCH(
       })
       if (rpcError) {
         return Response.json({ error: rpcError.message }, { status: 500 })
+      }
+      // Notify both matched users
+      const { data: match } = await supabaseAdmin
+        .from('matches')
+        .select('user1_id, user2_id')
+        .eq('id', id)
+        .single()
+      if (match) {
+        Promise.all([
+          notifyUser({ userId: match.user1_id, templateKey: 'match_paid', referenceId: id, vars: { match_id: id } }),
+          notifyUser({ userId: match.user2_id, templateKey: 'match_paid', referenceId: id, vars: { match_id: id } }),
+        ]).catch(console.error)
       }
     } else {
       // Simple enum transition

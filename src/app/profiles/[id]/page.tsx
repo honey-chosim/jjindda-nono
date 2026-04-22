@@ -6,7 +6,7 @@ import Link from "next/link";
 import PhotoSwiper from "@/components/profiles/PhotoSwiper";
 import Modal from "@/components/ui/Modal";
 import { getProfileById } from "@/services/profileService";
-import { sendDatingRequest, hasUsedRequestToday, hasRequested, getAcceptedRequestId } from "@/services/requestService";
+import { sendDatingRequest, hasUsedRequestToday, hasRequested, getAcceptedRequestId, getPendingRequestFrom } from "@/services/requestService";
 import { getSupabaseClient } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import type { ProfileView } from "@/types/database";
@@ -26,6 +26,8 @@ export default function ProfileDetailPage({
   const [showSuccess, setShowSuccess] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [acceptedRequestId, setAcceptedRequestId] = useState<string | null>(null);
+  const [pendingFromThem, setPendingFromThem] = useState<{ id: string } | null>(null);
+  const [showAcceptModal, setShowAcceptModal] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -35,16 +37,18 @@ export default function ProfileDetailPage({
         if (!user) return;
         setCurrentUserId(user.id);
 
-        const [profileData, usedTodayData, alreadyRequested, acceptedId] = await Promise.all([
+        const [profileData, usedTodayData, alreadyRequested, acceptedId, pendingFrom] = await Promise.all([
           getProfileById(id),
           hasUsedRequestToday(user.id),
           hasRequested(user.id, id),
           getAcceptedRequestId(user.id, id),
+          getPendingRequestFrom(id, user.id),
         ]);
         setProfile(profileData);
         setUsedToday(usedTodayData);
         setRequested(alreadyRequested);
         setAcceptedRequestId(acceptedId);
+        setPendingFromThem(pendingFrom);
       } catch (err) {
         console.error("Failed to fetch profile:", err);
       } finally {
@@ -53,6 +57,22 @@ export default function ProfileDetailPage({
     }
     fetchData();
   }, [id]);
+
+  async function handleAcceptFromProfile() {
+    if (!currentUserId || !pendingFromThem) return;
+    setShowAcceptModal(false);
+    try {
+      const res = await fetch('/api/requests/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId: pendingFromThem.id }),
+      });
+      if (!res.ok) throw new Error('accept failed');
+      router.push(`/match/${pendingFromThem.id}`);
+    } catch (err) {
+      console.error("Failed to accept request:", err);
+    }
+  }
 
   async function handleConfirmRequest() {
     if (!currentUserId || !profile) return;
@@ -191,6 +211,16 @@ export default function ProfileDetailPage({
           >
             결제 페이지로 이동
           </button>
+        ) : pendingFromThem ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-center text-xs text-[var(--text-muted)]">이 분이 나에게 소개팅을 신청했어요!</p>
+            <button
+              onClick={() => setShowAcceptModal(true)}
+              className="w-full h-14 rounded-2xl bg-[var(--primary)] text-white text-base font-semibold hover:bg-[#1F2937] active:scale-[0.98] transition-all shadow-sm"
+            >
+              바로 수락하기
+            </button>
+          </div>
         ) : usedToday || alreadyRequested ? (
           <div className="flex items-center justify-center gap-2 w-full h-14 rounded-2xl bg-gray-100 text-[var(--text-muted)]">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -219,6 +249,15 @@ export default function ProfileDetailPage({
         confirmLabel="신청하기"
         cancelLabel="취소"
         onConfirm={handleConfirmRequest}
+      />
+      <Modal
+        isOpen={showAcceptModal}
+        onClose={() => setShowAcceptModal(false)}
+        title="소개팅 수락"
+        description={`${profile.name}님의 소개팅 신청을 수락하시겠습니까?`}
+        confirmLabel="수락하기"
+        cancelLabel="취소"
+        onConfirm={handleAcceptFromProfile}
       />
     </div>
   );
