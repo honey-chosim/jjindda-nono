@@ -50,6 +50,24 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = getAdminClient()
+
+  // Validate amount against actual pending balance
+  const { data: earningsData, error: earningsErr } = await admin
+    .from('referral_earnings')
+    .select('amount, paid_payout_id')
+    .eq('referrer_id', user.id)
+  if (earningsErr) return NextResponse.json({ error: earningsErr.message }, { status: 500 })
+
+  type EarningRow = { amount: number; paid_payout_id: string | null }
+  const earnings = (earningsData ?? []) as EarningRow[]
+  const totalEarned = earnings.reduce((s, r) => s + r.amount, 0)
+  const paidOut = earnings.filter((r) => r.paid_payout_id).reduce((s, r) => s + r.amount, 0)
+  const pending = totalEarned - paidOut
+
+  if (amount > pending) {
+    return NextResponse.json({ error: `출금 가능 금액(${pending.toLocaleString()}원)을 초과할 수 없습니다` }, { status: 400 })
+  }
+
   const { data, error } = await admin
     .from('referral_payouts')
     .insert({ user_id: user.id, amount_requested: amount, bank_name: bankName, bank_account: bankAccount, account_holder: accountHolder })

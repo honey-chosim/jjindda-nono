@@ -28,6 +28,13 @@ export async function GET() {
   return NextResponse.json(data ?? [])
 }
 
+const ALLOWED: Record<string, string[]> = {
+  pending: ['approved', 'rejected'],
+  approved: ['paid'],
+  paid: [],
+  rejected: [],
+}
+
 export async function PATCH(req: NextRequest) {
   if (!(await checkAuth())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -35,6 +42,23 @@ export async function PATCH(req: NextRequest) {
   if (!id || !status) return NextResponse.json({ error: 'id and status required' }, { status: 400 })
 
   const supabase = getAdminClient()
+
+  const { data: current, error: fetchErr } = await supabase
+    .from('referral_payouts')
+    .select('status')
+    .eq('id', id)
+    .single()
+
+  if (fetchErr || !current) return NextResponse.json({ error: 'Payout not found' }, { status: 404 })
+
+  const allowed = ALLOWED[current.status] ?? []
+  if (!allowed.includes(status)) {
+    return NextResponse.json(
+      { error: `Invalid transition: ${current.status} → ${status}` },
+      { status: 400 }
+    )
+  }
+
   const { data, error } = await supabase
     .from('referral_payouts')
     .update({ status, admin_note: admin_note ?? null, processed_at: new Date().toISOString() })
