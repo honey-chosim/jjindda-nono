@@ -27,13 +27,33 @@ export async function PATCH(
   const body = await request.json()
   const supabaseAdmin = getAdminClient()
 
+  // 양쪽 검증(운영진 + 친구) 모두 완료 시 profile_approved SMS 1회 발송.
+  // sms_notifications 중복방지(reference_id=userId)로 한 번만 발송됨.
+  async function maybeNotifyFullyVerified(userId: string) {
+    const { data } = await supabaseAdmin
+      .from('profiles')
+      .select('is_verified, verified_by_referrer')
+      .eq('id', userId)
+      .single()
+    if (data?.is_verified && data?.verified_by_referrer) {
+      notifyUser({
+        userId,
+        templateKey: 'profile_approved',
+        referenceId: userId,
+        vars: {},
+      }).catch(console.error)
+    }
+  }
+
   if ('approved' in body) {
     const { approved, note } = body as { approved: boolean; note?: string }
+    const trimmedNote = note?.trim() ?? ''
 
     // 운영진 최종 승인/거절: is_verified + rejection_reason 직접 업데이트
+    // rejection_reason sentinel: null = 검토 대기, '' = 거절(사유 없음), 'text' = 거절(사유 있음)
     const update = approved
       ? { is_verified: true, rejection_reason: null }
-      : { is_verified: false, rejection_reason: note ?? '운영진 검토 결과 미승인' }
+      : { is_verified: false, rejection_reason: trimmedNote }
 
     const { data, error } = await supabaseAdmin
       .from('profiles')
@@ -43,12 +63,18 @@ export async function PATCH(
       .single()
     if (error) return Response.json({ error: error.message }, { status: 500 })
 
-    notifyUser({
-      userId: id,
-      templateKey: approved ? 'profile_approved' : 'profile_rejected',
-      referenceId: id,
-      vars: { reason: note },
-    }).catch(console.error)
+    if (approved) {
+      // 양쪽 검증 완료 시에만 SMS 발송
+      await maybeNotifyFullyVerified(id)
+    } else {
+      // 거절 SMS는 즉시 발송
+      notifyUser({
+        userId: id,
+        templateKey: 'profile_rejected',
+        referenceId: id,
+        vars: trimmedNote ? { reason: trimmedNote } : {},
+      }).catch(console.error)
+    }
 
     return Response.json(data)
   }
@@ -64,6 +90,10 @@ export async function PATCH(
       .select('*')
       .single()
     if (error) return Response.json({ error: error.message }, { status: 500 })
+
+    if (friend_approved) {
+      await maybeNotifyFullyVerified(id)
+    }
 
     return Response.json(data)
   }

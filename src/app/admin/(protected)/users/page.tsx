@@ -4,6 +4,17 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import type { Profile } from '@/types/database'
 
+interface InviteInfo {
+  code: string
+  label: string | null
+  created_by: string | null
+  referrer: { id: string; name: string; real_name: string | null } | null
+}
+
+interface UserWithInvite extends Profile {
+  invite: InviteInfo | null
+}
+
 function getAge(birthYear: number, birthMonth: number, birthDay: number): number {
   const today = new Date()
   const birth = new Date(birthYear, birthMonth - 1, birthDay)
@@ -17,9 +28,9 @@ type VerifyFilter = 'all' | 'pending' | 'approved' | 'rejected'
 type GenderFilter = 'all' | 'male' | 'female'
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<Profile[]>([])
+  const [users, setUsers] = useState<UserWithInvite[]>([])
   const [loading, setLoading] = useState(true)
-  const [selected, setSelected] = useState<Profile | null>(null)
+  const [selected, setSelected] = useState<UserWithInvite | null>(null)
   const [actionId, setActionId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [showReject, setShowReject] = useState(false)
@@ -51,11 +62,11 @@ export default function AdminUsersPage() {
     }
   }
 
-  async function handleApprove(user: Profile) {
+  async function handleApprove(user: UserWithInvite) {
     await patchUser(user.id, { approved: true })
   }
 
-  async function handleReject(user: Profile, reason: string) {
+  async function handleReject(user: UserWithInvite, reason: string) {
     await patchUser(user.id, { approved: false, note: reason })
     setShowReject(false)
     setRejectReason('')
@@ -326,6 +337,26 @@ export default function AdminUsersPage() {
                 </dl>
               </section>
 
+              {/* 초대 정보 */}
+              <section>
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">초대 정보</h4>
+                <dl className="divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
+                  <DlRow
+                    label="초대한 사람"
+                    value={
+                      selected.invite
+                        ? selected.invite.referrer
+                          ? `${selected.invite.referrer.real_name ?? selected.invite.referrer.name} (레퍼럴 유저)`
+                          : selected.invite.label
+                            ? `${selected.invite.label} (어드민 발급)`
+                            : '어드민 발급'
+                        : null
+                    }
+                  />
+                  <DlRow label="사용한 초대코드" value={selected.invite?.code ?? null} />
+                </dl>
+              </section>
+
               {/* 가입 정보 */}
               <section>
                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">가입 정보</h4>
@@ -344,10 +375,11 @@ export default function AdminUsersPage() {
                   <textarea
                     value={rejectReason}
                     onChange={(e) => setRejectReason(e.target.value)}
-                    placeholder="거절 사유를 입력해주세요 (유저에게 SMS 발송됨)"
+                    placeholder="거절 사유 (선택사항 — 비워두면 사유 없이 통지)"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
                     rows={3}
                   />
+                  <p className="text-[11px] text-gray-500">비워두면 "아쉽지만 프로필이 거절되었어요" SMS만 발송됩니다.</p>
                   <div className="flex gap-2">
                     <button
                       onClick={() => { setShowReject(false); setRejectReason('') }}
@@ -357,7 +389,7 @@ export default function AdminUsersPage() {
                     </button>
                     <button
                       onClick={() => handleReject(selected, rejectReason)}
-                      disabled={!rejectReason.trim() || actionId === selected.id}
+                      disabled={actionId === selected.id}
                       className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
                     >
                       {actionId === selected.id ? '처리 중...' : '거절 확정'}

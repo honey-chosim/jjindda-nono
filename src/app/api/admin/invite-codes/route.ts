@@ -27,7 +27,7 @@ export async function GET(_request: NextRequest) {
   const supabaseAdmin = getAdminClient()
   const { data, error } = await supabaseAdmin
     .from('invite_codes')
-    .select('*')
+    .select('*, referrer:profiles!invite_codes_created_by_fkey(id, name, real_name)')
     .order('created_at', { ascending: false })
 
   if (error) {

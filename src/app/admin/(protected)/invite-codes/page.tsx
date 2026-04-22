@@ -3,8 +3,12 @@
 import { useEffect, useState } from 'react'
 import type { InviteCode } from '@/types/database'
 
+interface InviteCodeWithReferrer extends InviteCode {
+  referrer: { id: string; name: string; real_name: string | null } | null
+}
+
 export default function AdminInviteCodesPage() {
-  const [codes, setCodes] = useState<InviteCode[]>([])
+  const [codes, setCodes] = useState<InviteCodeWithReferrer[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [count, setCount] = useState(1)
@@ -91,7 +95,7 @@ export default function AdminInviteCodesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">이름</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">발급자</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">코드</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">생성일</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">상태</th>
@@ -102,7 +106,19 @@ export default function AdminInviteCodesPage() {
               <tbody>
                 {codes.map((code) => (
                   <tr key={code.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-500 text-sm">{code.label ?? '-'}</td>
+                    <td className="px-4 py-3 text-gray-700 text-sm">
+                      {code.referrer ? (
+                        <div>
+                          <div className="font-medium text-gray-900">{code.referrer.real_name ?? code.referrer.name}</div>
+                          <div className="text-[10px] text-gray-400">레퍼럴 유저</div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="text-gray-500">{code.label ?? '-'}</div>
+                          <div className="text-[10px] text-gray-400">어드민 발급</div>
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <span className="font-mono font-medium text-gray-900">{code.code}</span>

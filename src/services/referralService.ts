@@ -90,13 +90,15 @@ export async function verifyReferralProfile(args: {
   approved: boolean
   note?: string
 }): Promise<void> {
-  const supabase = getRawSupabaseClient()
-  const { error } = await supabase.rpc('verify_referral_profile', {
-    p_invitee_id: args.inviteeId,
-    p_approved: args.approved,
-    p_note: args.note ?? null,
+  const res = await fetch('/api/referral/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(args),
   })
-  if (error) throw error
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({ error: 'verify failed' }))
+    throw new Error(error)
+  }
 }
 
 /**

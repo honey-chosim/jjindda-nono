@@ -1,0 +1,71 @@
+{
+  "agents": [
+    {
+      "agent_id": "a2358c9bacee3030d",
+      "agent_type": "reviewer",
+      "started_at": "2026-04-22T16:01:42.442Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-22T16:03:02.561Z",
+      "duration_ms": 80119
+    },
+    {
+      "agent_id": "aff610fbffab22df2",
+      "agent_type": "reviewer",
+      "started_at": "2026-04-22T16:06:16.381Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-22T16:06:52.377Z",
+      "duration_ms": 35996
+    },
+    {
+      "agent_id": "aea3b4fa6755f4434",
+      "agent_type": "reviewer",
+      "started_at": "2026-04-22T16:15:25.075Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-22T16:16:50.212Z",
+      "duration_ms": 85137
+    },
+    {
+      "agent_id": "a0f54ef2fc295d77c",
+      "agent_type": "reviewer",
+      "started_at": "2026-04-22T16:20:32.778Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-22T16:21:11.783Z",
+      "duration_ms": 39005
+    },
+    {
+      "agent_id": "aeac7cf6f643ed4bc",
+      "agent_type": "qa",
+      "started_at": "2026-04-22T16:26:00.634Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-22T16:26:17.050Z",
+      "duration_ms": 16416
+    },
+    {
+      "agent_id": "a24546c812e0dbbfb",
+      "agent_type": "backend",
+      "started_at": "2026-04-22T16:26:33.006Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-22T16:26:43.635Z",
+      "duration_ms": 10629
+    },
+    {
+      "agent_id": "a82a283a15127153d",
+      "agent_type": "qa",
+      "started_at": "2026-04-22T16:26:33.848Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-22T16:26:38.358Z",
+      "duration_ms": 4510
+    }
+  ],
+  "total_spawned": 7,
+  "total_completed": 7,
+  "total_failed": 0,
+  "last_updated": "2026-04-22T17:44:03.731Z"
+}

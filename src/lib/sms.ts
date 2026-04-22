@@ -130,7 +130,9 @@ export function renderTemplate(
     case 'profile_approved':
       return `${prefix} 프로필이 승인되었어요! 오늘의 인연을 찾아보세요 → ${appUrl('/profiles')}`
     case 'profile_rejected':
-      return `${prefix} 프로필 보완이 필요해요.\n사유: ${vars.reason ?? '프로필을 다시 확인해주세요.'} → ${appUrl('/my/edit')}`
+      return vars.reason
+        ? `${prefix} 아쉽지만 프로필이 거절되었어요.\n사유: ${vars.reason}\n수정 후 다시 신청 가능해요 → ${appUrl('/my/edit')}`
+        : `${prefix} 아쉽지만 프로필이 거절되었어요.\n수정 후 다시 신청 가능해요 → ${appUrl('/my/edit')}`
     case 'referral_signup':
       return `${prefix} 소개해준 ${vars.friend_name}님이 가입했어요.\n프로필 검증 → ${appUrl('/my')}`
     case 'referral_verify_reminder':
