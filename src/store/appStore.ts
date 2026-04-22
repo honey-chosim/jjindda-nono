@@ -50,7 +50,7 @@ export const useAppStore = create<AppState>()(
         })),
     }),
     {
-      name: "jjinda-nono-app",
+      name: "jjindda-nono-app",
     }
   )
 );
