@@ -188,37 +188,12 @@ export interface RequestQuota {
   activeSlots: number
 }
 
+/**
+ * @deprecated Use `getMyQuota` from `@/services/quotaService` for the full status.
+ * Retained for existing UI. Delegates to policy-compliant getMyQuota (KST 08:00 boundary + payer-aware slots).
+ */
 export async function getRequestQuota(userId: string): Promise<RequestQuota> {
-  const supabase = getRawSupabaseClient()
-
-  const [sentRes, receivedRes] = await Promise.all([
-    supabase
-      .from('dating_requests')
-      .select('id', { count: 'exact', head: true })
-      .eq('requester_id', userId)
-      .eq('status', 'pending'),
-    supabase
-      .from('dating_requests')
-      .select('id', { count: 'exact', head: true })
-      .eq('target_id', userId)
-      .eq('status', 'pending'),
-  ])
-
-  const sentActive = sentRes.count ?? 0
-  const receivedActive = receivedRes.count ?? 0
-  const activeSlots = sentActive + receivedActive
-
-  const today = new Date().toISOString().split('T')[0]
-  const { data: limitRow } = await supabase
-    .from('daily_request_limits')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('request_date', today)
-    .maybeSingle()
-
-  const usedToday = limitRow !== null ? 1 : 0
-  const totalSendQuota = 1 + receivedActive
-  const available = Math.max(0, totalSendQuota - usedToday)
-
-  return { available, activeSlots }
+  const { getMyQuota } = await import('./quotaService')
+  const q = await getMyQuota(userId)
+  return { available: q.remainingSend, activeSlots: q.activeSlotsUsed }
 }
