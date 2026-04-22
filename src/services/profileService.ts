@@ -18,35 +18,15 @@ function toProfileView(p: Record<string, unknown>): ProfileView {
 // Columns returned for other users — phone excluded for privacy
 const PUBLIC_PROFILE_COLUMNS = 'id,name,gender,birth_year,birth_month,birth_day,height,education,school,company,job_title,residence_city,residence_district,smoking,drinking,mbti,hobbies,pet,bio,photos,is_active,onboarding_completed,created_at,updated_at'
 
-export async function getProfiles(currentUserId: string): Promise<ProfileView[]> {
-  const supabase = getRawSupabaseClient()
-
-  // Fetch current user's gender — 반드시 조회돼야 함. 없으면 탐색 자체가 위험(동성 프로필 노출).
-  const { data: me, error: meError } = await supabase
-    .from('profiles')
-    .select('gender')
-    .eq('id', currentUserId)
-    .maybeSingle()
-
-  if (meError) throw meError
-  if (!me?.gender) {
-    // 자기 프로필 조회 실패 (RLS 또는 세션 문제) → 빈 리스트 (fail-closed)
-    return []
+export async function getProfiles(_currentUserId: string): Promise<ProfileView[]> {
+  // 서버 라우트 경유 (service_role 사용 → RLS/세션 이슈 없이 성별 필터 확실히 적용)
+  const res = await fetch('/api/profiles', { cache: 'no-store' })
+  if (!res.ok) {
+    if (res.status === 401) return []
+    throw new Error((await res.json().catch(() => ({})))?.error ?? 'failed')
   }
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .select(PUBLIC_PROFILE_COLUMNS)
-    .eq('is_active', true)
-    .eq('onboarding_completed', true)
-    .eq('is_verified', true)
-    .eq('verified_by_referrer', true)
-    .neq('id', currentUserId)
-    .neq('gender', me.gender)
-    .order('created_at', { ascending: false })
-
-  if (error) throw error
-  return ((data ?? []) as Record<string, unknown>[]).map(toProfileView)
+  const data = (await res.json()) as Record<string, unknown>[]
+  return data.map(toProfileView)
 }
 
 export async function getProfileById(id: string): Promise<ProfileView | null> {
