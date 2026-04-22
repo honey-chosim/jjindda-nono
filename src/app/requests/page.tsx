@@ -26,8 +26,9 @@ const statusColor: Record<string, string> = {
   expired: "bg-[#F3F4F6] text-[#6B7280]",
 };
 
-function expiresAt(createdAt: string): string {
-  return new Date(new Date(createdAt).getTime() + 24 * 60 * 60 * 1000).toISOString();
+function expiresAt(req: { expires_at?: string | null; created_at: string }): string {
+  if (req.expires_at) return req.expires_at;
+  return new Date(new Date(req.created_at).getTime() + 24 * 60 * 60 * 1000).toISOString();
 }
 
 export default function RequestsPage() {
@@ -147,7 +148,7 @@ export default function RequestsPage() {
                     </p>
                     {req.status === "pending" && (
                       <CountdownTimer
-                        expiresAt={expiresAt(req.created_at)}
+                        expiresAt={expiresAt(req)}
                         onExpired={() => handleRequestExpired(req.id)}
                         compact
                         className="mt-1"

@@ -16,20 +16,14 @@ async function handler(req: NextRequest) {
   }
 
   const supabase = getAdminClient();
-  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-  const { data, error } = await supabase
-    .from("matches")
-    .update({ payment_status: "expired" })
-    .eq("payment_status", "pending")
-    .lt("created_at", cutoff)
-    .select("id");
+  const { data, error } = await supabase.rpc("expire_pending_payments");
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ expired: data?.length ?? 0 });
+  return NextResponse.json({ expired: data ?? 0 });
 }
 
 export const GET = handler;
