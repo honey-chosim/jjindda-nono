@@ -231,7 +231,7 @@ export default function RequestDetailPage({
           <div className="flex flex-col gap-2">
             <div className="flex justify-center">
               <CountdownTimer
-                expiresAt={new Date(new Date(request.created_at).getTime() + 24 * 60 * 60 * 1000).toISOString()}
+                expiresAt={request.expires_at ?? new Date(new Date(request.created_at).getTime() + 24 * 60 * 60 * 1000).toISOString()}
                 onExpired={() => setIsExpired(true)}
                 compact
               />

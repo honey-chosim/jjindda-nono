@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseClient } from '@/lib/supabase'
 import { createClient } from '@supabase/supabase-js'
 import { notifyUser } from '@/services/notificationService'
-import type { DatingRequest } from '@/types/database'
 
 function getAdminClient() {
   return createClient(
@@ -22,57 +21,35 @@ export async function POST(req: NextRequest) {
 
   const admin = getAdminClient()
 
-  // Accept the request (target_id must match current user)
-  const { data: request, error: reqError } = await admin
+  // Use Phase 1 RPC: validates status, grants receive-bonus quota, creates match atomically
+  const { data: matchId, error: rpcError } = await admin
+    .rpc('accept_dating_request', { p_request_id: requestId })
+
+  if (rpcError) return NextResponse.json({ error: rpcError.message }, { status: 500 })
+
+  // Fetch request + profiles for notification
+  const { data: drRow } = await admin
     .from('dating_requests')
-    .update({ status: 'accepted' })
+    .select('requester_id, target_id')
     .eq('id', requestId)
-    .eq('target_id', user.id)
-    .select()
     .single()
 
-  if (reqError) return NextResponse.json({ error: reqError.message }, { status: 500 })
+  if (drRow) {
+    const { data: profiles } = await admin
+      .from('profiles')
+      .select('id, name')
+      .in('id', [drRow.requester_id, drRow.target_id])
 
-  const req2 = request as DatingRequest
+    const targetProfile = profiles?.find((p) => p.id === drRow.target_id)
 
-  // Create match
-  const { data: match, error: matchError } = await admin
-    .from('matches')
-    .upsert({
-      request_id: requestId,
-      user1_id: req2.requester_id,
-      user2_id: req2.target_id,
-    }, { onConflict: 'request_id', ignoreDuplicates: true })
-    .select()
-    .single()
-
-  if (matchError) return NextResponse.json({ error: matchError.message }, { status: 500 })
-
-  // Fetch names for notification vars
-  const { data: profiles } = await admin
-    .from('profiles')
-    .select('id, name')
-    .in('id', [req2.requester_id, req2.target_id])
-
-  const requesterProfile = profiles?.find((p) => p.id === req2.requester_id)
-  const targetProfile = profiles?.find((p) => p.id === req2.target_id)
-
-  // Fire notifications without blocking response
-  const matchId = match?.id ?? requestId
-  Promise.all([
+    // Notify requester (A) that B accepted — SMS #3
     notifyUser({
-      userId: req2.requester_id,
+      userId: drRow.requester_id,
       templateKey: 'match_accepted',
       referenceId: matchId,
       vars: { target_name: targetProfile?.name ?? '상대방', match_id: matchId },
-    }),
-    notifyUser({
-      userId: req2.target_id,
-      templateKey: 'request_received',
-      referenceId: requestId,
-      vars: { requester_name: requesterProfile?.name ?? '상대방' },
-    }),
-  ]).catch(console.error)
+    }).catch(console.error)
+  }
 
   return NextResponse.json({ matchId })
 }
