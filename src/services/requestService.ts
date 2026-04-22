@@ -1,6 +1,51 @@
 import { getRawSupabaseClient } from '@/lib/supabase'
 import type { DatingRequest, RequestWithRequester } from '@/types/database'
 
+/**
+ * v2 (Phase 1 RPC 기반): 3-slot + 송신권 정책을 RPC에서 enforce.
+ * 기존 sendDatingRequest()는 호환성 유지를 위해 남겨둠. 신규 코드는 sendDatingRequestV2 사용.
+ */
+export async function sendDatingRequestV2(
+  requesterId: string,
+  targetId: string
+): Promise<string> {
+  const supabase = getRawSupabaseClient()
+  const { data, error } = await supabase.rpc('send_dating_request', {
+    p_requester_id: requesterId,
+    p_target_id: targetId,
+  })
+  if (error) {
+    const code = (error as { code?: string }).code
+    if (code === 'P0001') throw new Error('동시 요청 최대 3개를 넘을 수 없어요.')
+    if (code === 'P0002') throw new Error('오늘의 요청권을 모두 사용했어요. 내일 오전 8시에 초기화돼요.')
+    if (code === '23505') throw new Error('이미 이 사람에게 보낸 요청이 있어요.')
+    throw error
+  }
+  return data as string
+}
+
+export async function cancelRequestV2(requestId: string): Promise<void> {
+  const supabase = getRawSupabaseClient()
+  const { error } = await supabase.rpc('cancel_dating_request', {
+    p_request_id: requestId,
+  })
+  if (error) throw error
+}
+
+export async function acceptRequestV2(requestId: string): Promise<string> {
+  const supabase = getRawSupabaseClient()
+  const { data, error } = await supabase.rpc('accept_dating_request', {
+    p_request_id: requestId,
+  })
+  if (error) {
+    const code = (error as { code?: string }).code
+    if (code === 'P0004') throw new Error('이미 응답한 요청이에요.')
+    if (code === 'P0005') throw new Error('만료된 요청이에요.')
+    throw error
+  }
+  return data as string
+}
+
 export async function hasUsedRequestToday(userId: string): Promise<boolean> {
   const supabase = getRawSupabaseClient()
   const today = new Date().toISOString().split('T')[0]
@@ -15,28 +60,20 @@ export async function hasUsedRequestToday(userId: string): Promise<boolean> {
   return data !== null
 }
 
+/**
+ * @deprecated legacy 경로가 3슬롯/수신보너스 정책을 우회할 수 있어서 V2 RPC로 완전 위임.
+ */
 export async function sendDatingRequest(
   requesterId: string,
   targetId: string
 ): Promise<DatingRequest> {
   const supabase = getRawSupabaseClient()
-
-  const today = new Date().toISOString().split('T')[0]
-  const { error: limitError } = await supabase
-    .from('daily_request_limits')
-    .insert({ user_id: requesterId, request_date: today })
-
-  if (limitError) {
-    if (limitError.code === '23505') {
-      throw new Error('오늘 이미 소개팅 신청을 하셨습니다. 내일 다시 시도해주세요.')
-    }
-    throw limitError
-  }
+  const requestId = await sendDatingRequestV2(requesterId, targetId)
 
   const { data, error } = await supabase
     .from('dating_requests')
-    .insert({ requester_id: requesterId, target_id: targetId })
-    .select()
+    .select('*')
+    .eq('id', requestId)
     .single()
 
   if (error) throw error
@@ -118,6 +155,21 @@ export async function getAcceptedRequestId(requesterId: string, targetId: string
   return data?.id ?? null
 }
 
+export async function getPendingRequestFrom(
+  senderId: string,
+  receiverId: string
+): Promise<{ id: string } | null> {
+  const supabase = getRawSupabaseClient()
+  const { data } = await supabase
+    .from('dating_requests')
+    .select('id')
+    .eq('requester_id', senderId)
+    .eq('target_id', receiverId)
+    .eq('status', 'pending')
+    .maybeSingle()
+  return data ?? null
+}
+
 export async function hasRequested(requesterId: string, targetId: string): Promise<boolean> {
   const supabase = getRawSupabaseClient()
   const { data, error } = await supabase
@@ -129,4 +181,19 @@ export async function hasRequested(requesterId: string, targetId: string): Promi
 
   if (error) throw error
   return data !== null
+}
+
+export interface RequestQuota {
+  available: number
+  activeSlots: number
+}
+
+/**
+ * @deprecated Use `getMyQuota` from `@/services/quotaService` for the full status.
+ * Retained for existing UI. Delegates to policy-compliant getMyQuota (KST 08:00 boundary + payer-aware slots).
+ */
+export async function getRequestQuota(userId: string): Promise<RequestQuota> {
+  const { getMyQuota } = await import('./quotaService')
+  const q = await getMyQuota(userId)
+  return { available: q.remainingSend, activeSlots: q.activeSlotsUsed }
 }

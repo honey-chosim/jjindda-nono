@@ -1,18 +1,20 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { DatingRequest } from '@/types/database'
+import type { DatingRequest, DatingRequestStatus } from '@/types/database'
 
 interface RequestWithProfiles extends DatingRequest {
   requester: { id: string; name: string; gender: string } | null
   target: { id: string; name: string; gender: string } | null
 }
 
-const statusConfig = {
+const statusConfig: Record<DatingRequestStatus, { label: string; className: string }> = {
   pending: { label: '대기중', className: 'bg-yellow-100 text-yellow-700' },
   accepted: { label: '수락됨', className: 'bg-green-100 text-green-700' },
   rejected: { label: '거절됨', className: 'bg-red-100 text-red-600' },
   expired: { label: '만료됨', className: 'bg-gray-100 text-gray-500' },
+  cancelled: { label: '취소됨', className: 'bg-gray-100 text-gray-500' },
+  cancelled_unpaid: { label: '결제만료로 취소', className: 'bg-gray-100 text-gray-500' },
 }
 
 export default function AdminRequestsPage() {
