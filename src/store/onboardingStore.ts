@@ -140,6 +140,6 @@ export const useOnboardingStore = create<OnboardingState>()(
       photos: state.photos.filter((_, i) => i !== index),
     })),
     }),
-    { name: "jjinda-onboarding" }
+    { name: "jjindda-onboarding" }
   )
 );

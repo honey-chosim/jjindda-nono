@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   await supabaseAdmin.from('phone_otps').delete().eq('phone', digits)
 
   // 3. Find or create user — phone stored as synthetic email
-  const syntheticEmail = `${digits}@jjinda.nono`
+  const syntheticEmail = `${digits}@jjindda.nono`
 
   // Check profiles table first (fastest lookup, no full user list scan)
   const { data: profile } = await supabaseAdmin
