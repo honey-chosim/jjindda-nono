@@ -39,8 +39,16 @@ export async function POST(req: NextRequest) {
   })
   if (rpcErr) return NextResponse.json({ error: rpcErr.message }, { status: 500 })
 
-  // 승인된 경우 양쪽 검증 완료됐는지 체크 → SMS 발송
+  // 상태 변경 시 기존 profile_approved/rejected SMS 이력 삭제 (재시도 시 재발송 가능)
+  await admin
+    .from('sms_notifications')
+    .delete()
+    .eq('user_id', inviteeId)
+    .in('template_key', ['profile_approved', 'profile_rejected'])
+    .eq('reference_id', inviteeId)
+
   if (approved) {
+    // 양쪽 검증 완료됐는지 체크 → SMS 발송
     const { data: profile } = await admin
       .from('profiles')
       .select('is_verified, verified_by_referrer')
@@ -58,13 +66,15 @@ export async function POST(req: NextRequest) {
       } catch (e) { console.error('profile_approved SMS failed:', e) }
     }
   } else {
-    // 친구가 거절로 돌리면 기존 승인 SMS 이력 삭제 → 재승인 시 재발송 가능
-    await admin
-      .from('sms_notifications')
-      .delete()
-      .eq('user_id', inviteeId)
-      .eq('template_key', 'profile_approved')
-      .eq('reference_id', inviteeId)
+    // 친구 거절 시 SMS 발송 (#7)
+    try {
+      await notifyUser({
+        userId: inviteeId,
+        templateKey: 'profile_rejected',
+        referenceId: inviteeId,
+        vars: note ? { reason: note } : {},
+      })
+    } catch (e) { console.error('profile_rejected SMS (friend) failed:', e) }
   }
 
   return NextResponse.json({ ok: true })
