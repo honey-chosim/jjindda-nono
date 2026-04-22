@@ -21,14 +21,20 @@ const PUBLIC_PROFILE_COLUMNS = 'id,name,gender,birth_year,birth_month,birth_day,
 export async function getProfiles(currentUserId: string): Promise<ProfileView[]> {
   const supabase = getRawSupabaseClient()
 
-  // Fetch current user's gender to filter opposite gender only
-  const { data: me } = await supabase
+  // Fetch current user's gender — 반드시 조회돼야 함. 없으면 탐색 자체가 위험(동성 프로필 노출).
+  const { data: me, error: meError } = await supabase
     .from('profiles')
     .select('gender')
     .eq('id', currentUserId)
     .maybeSingle()
 
-  let query = supabase
+  if (meError) throw meError
+  if (!me?.gender) {
+    // 자기 프로필 조회 실패 (RLS 또는 세션 문제) → 빈 리스트 (fail-closed)
+    return []
+  }
+
+  const { data, error } = await supabase
     .from('profiles')
     .select(PUBLIC_PROFILE_COLUMNS)
     .eq('is_active', true)
@@ -36,13 +42,9 @@ export async function getProfiles(currentUserId: string): Promise<ProfileView[]>
     .eq('is_verified', true)
     .eq('verified_by_referrer', true)
     .neq('id', currentUserId)
+    .neq('gender', me.gender)
     .order('created_at', { ascending: false })
 
-  if (me?.gender) {
-    query = query.neq('gender', me.gender)
-  }
-
-  const { data, error } = await query
   if (error) throw error
   return ((data ?? []) as Record<string, unknown>[]).map(toProfileView)
 }
