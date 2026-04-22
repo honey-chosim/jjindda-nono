@@ -55,6 +55,14 @@ export async function POST(req: NextRequest) {
         vars: {},
       }).catch(console.error)
     }
+  } else {
+    // 친구가 거절로 돌리면 기존 승인 SMS 이력 삭제 → 재승인 시 재발송 가능
+    await admin
+      .from('sms_notifications')
+      .delete()
+      .eq('user_id', inviteeId)
+      .eq('template_key', 'profile_approved')
+      .eq('reference_id', inviteeId)
   }
 
   return NextResponse.json({ ok: true })

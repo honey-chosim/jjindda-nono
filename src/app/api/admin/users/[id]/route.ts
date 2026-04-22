@@ -45,6 +45,16 @@ export async function PATCH(
     }
   }
 
+  // 승인 취소/거절 시 기존 profile_approved SMS 이력 삭제 → 재승인 시 SMS 재발송 가능하게
+  async function clearApprovedSmsHistory(userId: string) {
+    await supabaseAdmin
+      .from('sms_notifications')
+      .delete()
+      .eq('user_id', userId)
+      .eq('template_key', 'profile_approved')
+      .eq('reference_id', userId)
+  }
+
   if ('approved' in body) {
     const { approved, note } = body as { approved: boolean; note?: string }
     const trimmedNote = note?.trim() ?? ''
@@ -67,6 +77,8 @@ export async function PATCH(
       // 양쪽 검증 완료 시에만 SMS 발송
       await maybeNotifyFullyVerified(id)
     } else {
+      // 승인 취소 시엔 기존 profile_approved 이력 삭제 (재승인 시 재발송)
+      await clearApprovedSmsHistory(id)
       // 거절 SMS는 즉시 발송
       notifyUser({
         userId: id,
@@ -93,6 +105,8 @@ export async function PATCH(
 
     if (friend_approved) {
       await maybeNotifyFullyVerified(id)
+    } else {
+      await clearApprovedSmsHistory(id)
     }
 
     return Response.json(data)
