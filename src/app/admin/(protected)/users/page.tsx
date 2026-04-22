@@ -15,31 +15,29 @@ function getAge(birthYear: number, birthMonth: number, birthDay: number): number
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
-  const [toggling, setToggling] = useState<string | null>(null)
+  const [actionId, setActionId] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/admin/users')
       .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) setUsers(data)
-      })
+      .then((data) => { if (Array.isArray(data)) setUsers(data) })
       .finally(() => setLoading(false))
   }, [])
 
-  async function toggleActive(user: Profile) {
-    setToggling(user.id)
+  async function patchUser(userId: string, body: Record<string, unknown>) {
+    setActionId(userId)
     try {
-      const res = await fetch(`/api/admin/users/${user.id}`, {
+      const res = await fetch(`/api/admin/users/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_active: !user.is_active }),
+        body: JSON.stringify(body),
       })
       if (res.ok) {
         const updated = await res.json()
-        setUsers((prev) => prev.map((u) => (u.id === user.id ? updated : u)))
+        setUsers((prev) => prev.map((u) => (u.id === userId ? updated : u)))
       }
     } finally {
-      setToggling(null)
+      setActionId(null)
     }
   }
 
@@ -64,6 +62,7 @@ export default function AdminUsersPage() {
                   <th className="text-left px-4 py-3 font-medium text-gray-600">거주지</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">가입일</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">온보딩</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">레퍼럴 검증</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">상태</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">액션</th>
                 </tr>
@@ -88,45 +87,65 @@ export default function AdminUsersPage() {
                       {new Date(user.created_at).toLocaleDateString('ko-KR')}
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                          user.onboarding_completed
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-500'
-                        }`}
-                      >
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                        user.onboarding_completed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                      }`}>
                         {user.onboarding_completed ? '완료' : '미완료'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                          user.is_active
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-red-100 text-red-600'
-                        }`}
-                      >
+                      {user.is_verified ? (
+                        <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                          승인됨
+                        </span>
+                      ) : user.verified_by_referrer === false ? (
+                        <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600">
+                          거절됨
+                        </span>
+                      ) : (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => patchUser(user.id, { approved: true })}
+                            disabled={actionId === user.id}
+                            className="px-2 py-1 rounded-md text-xs font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+                          >
+                            승인
+                          </button>
+                          <button
+                            onClick={() => patchUser(user.id, { approved: false })}
+                            disabled={actionId === user.id}
+                            className="px-2 py-1 rounded-md text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50 transition-colors"
+                          >
+                            거절
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                        user.is_active ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-600'
+                      }`}>
                         {user.is_active ? '활성' : '비활성'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => toggleActive(user)}
-                        disabled={toggling === user.id}
+                        onClick={() => patchUser(user.id, { is_active: !user.is_active })}
+                        disabled={actionId === user.id}
                         className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
                           user.is_active
                             ? 'bg-red-50 text-red-600 hover:bg-red-100'
                             : 'bg-green-50 text-green-700 hover:bg-green-100'
                         }`}
                       >
-                        {toggling === user.id ? '...' : user.is_active ? '비활성화' : '활성화'}
+                        {actionId === user.id ? '...' : user.is_active ? '비활성화' : '활성화'}
                       </button>
                     </td>
                   </tr>
                 ))}
                 {users.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
+                    <td colSpan={10} className="px-4 py-8 text-center text-gray-400">
                       유저가 없습니다.
                     </td>
                   </tr>
