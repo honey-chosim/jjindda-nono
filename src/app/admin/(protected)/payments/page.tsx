@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { Match, DatingRequest } from '@/types/database'
+import type { Match, DatingRequest, PaymentStatus } from '@/types/database'
 
 interface MatchWithProfiles extends Match {
   user1: { id: string; name: string; phone: string | null } | null
@@ -23,7 +23,7 @@ export default function AdminPaymentsPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  async function updateMatch(id: string, patch: Partial<{ payment_status: 'pending' | 'paid'; kakao_group_created: boolean }>) {
+  async function updateMatch(id: string, patch: Partial<{ payment_status: PaymentStatus; kakao_group_created: boolean }>) {
     setUpdating(id)
     try {
       const res = await fetch(`/api/admin/matches/${id}`, {
