@@ -26,7 +26,7 @@ export async function getProfiles(currentUserId: string): Promise<ProfileView[]>
     .from('profiles')
     .select('gender')
     .eq('id', currentUserId)
-    .single()
+    .maybeSingle()
 
   let query = supabase
     .from('profiles')
