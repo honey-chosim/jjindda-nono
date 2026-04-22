@@ -7,6 +7,22 @@
     {
       "path": "/api/cron/expire-payments",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/remind-request-expiry",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/remind-payment-expiry",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/notify-referral-signups",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/reset-quotas",
+      "schedule": "0 23 * * *"
     }
   ]
 }
