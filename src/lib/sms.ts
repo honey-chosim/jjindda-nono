@@ -96,6 +96,9 @@ const CRITICAL_TEMPLATES: Set<SmsTemplateKey> = new Set([
   'match_accepted',
   'payment_expiry_reminder',
   'match_paid',
+  // 초기 운영 편의상 24시간 발송 (정책상 X였으나 사용자 지시)
+  'profile_approved',
+  'profile_rejected',
 ])
 
 const AD_TEMPLATES: Set<SmsTemplateKey> = new Set([
