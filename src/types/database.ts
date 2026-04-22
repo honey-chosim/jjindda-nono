@@ -216,6 +216,7 @@ export interface Database {
           request_id: string
           user1_id: string
           user2_id: string
+          payer_id: string
           payment_status: PaymentStatus
           payment_expires_at: string | null
           payment_confirmed_at: string | null
@@ -230,6 +231,7 @@ export interface Database {
           request_id: string
           user1_id: string
           user2_id: string
+          payer_id: string
           payment_status?: PaymentStatus
           payment_expires_at?: string | null
           payment_confirmed_at?: string | null
@@ -244,6 +246,7 @@ export interface Database {
           request_id?: string
           user1_id?: string
           user2_id?: string
+          payer_id?: string
           payment_status?: PaymentStatus
           payment_expires_at?: string | null
           payment_confirmed_at?: string | null

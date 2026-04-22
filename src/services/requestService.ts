@@ -60,28 +60,20 @@ export async function hasUsedRequestToday(userId: string): Promise<boolean> {
   return data !== null
 }
 
+/**
+ * @deprecated legacy 경로가 3슬롯/수신보너스 정책을 우회할 수 있어서 V2 RPC로 완전 위임.
+ */
 export async function sendDatingRequest(
   requesterId: string,
   targetId: string
 ): Promise<DatingRequest> {
   const supabase = getRawSupabaseClient()
-
-  const today = new Date().toISOString().split('T')[0]
-  const { error: limitError } = await supabase
-    .from('daily_request_limits')
-    .insert({ user_id: requesterId, request_date: today })
-
-  if (limitError) {
-    if (limitError.code === '23505') {
-      throw new Error('오늘 이미 소개팅 신청을 하셨습니다. 내일 다시 시도해주세요.')
-    }
-    throw limitError
-  }
+  const requestId = await sendDatingRequestV2(requesterId, targetId)
 
   const { data, error } = await supabase
     .from('dating_requests')
-    .insert({ requester_id: requesterId, target_id: targetId })
-    .select()
+    .select('*')
+    .eq('id', requestId)
     .single()
 
   if (error) throw error
