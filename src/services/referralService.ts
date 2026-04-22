@@ -107,21 +107,32 @@ export async function verifyReferralProfile(args: {
  */
 export async function getReferredUsersToVerify(referrerId: string): Promise<Profile[]> {
   const supabase = getRawSupabaseClient()
-  const { data, error } = await supabase
+
+  // Step 1: 내가 만든 초대코드 중 used_by가 있는 것들
+  const { data: codes, error: codesErr } = await supabase
     .from('invite_codes')
-    .select('used_by, invitee:profiles!invite_codes_used_by_fkey(*)')
+    .select('used_by')
     .eq('created_by', referrerId)
     .not('used_by', 'is', null)
 
-  if (error) throw error
+  if (codesErr) throw codesErr
 
-  type Row = { used_by: string | null; invitee: Profile | null }
-  const rows = (data ?? []) as unknown as Row[]
-  const invitees = rows.map((r) => r.invitee).filter((p): p is Profile => p != null)
+  const inviteeIds = ((codes ?? []) as { used_by: string | null }[])
+    .map((c) => c.used_by)
+    .filter((id): id is string => !!id)
+  if (inviteeIds.length === 0) return []
 
+  // Step 2: 해당 invitee들의 profile
+  const { data: profiles, error: profErr } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', inviteeIds)
+
+  if (profErr) throw profErr
+  const invitees = (profiles ?? []) as Profile[]
   if (invitees.length === 0) return []
 
-  // Exclude invitees already processed (any record in referral_verifications means done)
+  // Step 3: 이미 처리된 invitee 제외 (referral_verifications에 record 있으면 done)
   const { data: verified } = await supabase
     .from('referral_verifications')
     .select('invitee_id')
