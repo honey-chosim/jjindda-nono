@@ -10,7 +10,15 @@ import { getSentRequests } from "@/services/requestService";
 import { getReferredUsersToVerify, verifyReferralProfile } from "@/services/referralService";
 import { getSupabaseClient } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
-import type { ProfileView, DatingRequest, Profile } from "@/types/database";
+import type { ProfileView, DatingRequest, Profile, ReferralPayout } from "@/types/database";
+
+interface ReferralBalance {
+  totalEarned: number;
+  paid: number;
+  pending: number;
+  countMale: number;
+  countFemale: number;
+}
 
 const statusLabel: Record<string, string> = {
   pending: "대기중",
@@ -36,6 +44,11 @@ export default function MyPage() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [referralsToVerify, setReferralsToVerify] = useState<Profile[]>([]);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [referralBalance, setReferralBalance] = useState<ReferralBalance | null>(null);
+  const [referralPayouts, setReferralPayouts] = useState<ReferralPayout[]>([]);
+  const [showPayoutForm, setShowPayoutForm] = useState(false);
+  const [payoutForm, setPayoutForm] = useState({ bankName: "", bankAccount: "", accountHolder: "", amount: 0 });
+  const [submittingPayout, setSubmittingPayout] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -43,16 +56,22 @@ export default function MyPage() {
         const supabase = getSupabaseClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        const [profileData, requestsData, codesRes, referrals] = await Promise.all([
+        const [profileData, requestsData, codesRes, referrals, referralRes] = await Promise.all([
           getMyProfile(user.id),
           getSentRequests(user.id),
           fetch('/api/invite-codes/my'),
           getReferredUsersToVerify(user.id),
+          fetch('/api/referral/payouts'),
         ]);
         setProfile(profileData);
         setSentRequests(requestsData);
         if (codesRes.ok) setInviteCodes(await codesRes.json());
         setReferralsToVerify(referrals);
+        if (referralRes.ok) {
+          const rd = await referralRes.json();
+          setReferralBalance(rd.balance);
+          setReferralPayouts(rd.payouts ?? []);
+        }
       } catch (err) {
         console.error("Failed to fetch my data:", err);
       } finally {
@@ -304,6 +323,88 @@ export default function MyPage() {
               </Card>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* 레퍼럴 수익 섹션 */}
+      {referralBalance && referralBalance.totalEarned > 0 && (
+        <div className="px-5 pt-4 pb-2">
+          <h2 className="text-base font-bold text-[var(--text)] mb-3">레퍼럴 수익</h2>
+          <Card className="p-4 mb-3">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-[var(--text-muted)]">총 적립</span>
+              <span className="text-sm font-semibold text-[var(--text)]">{referralBalance.totalEarned.toLocaleString()}원</span>
+            </div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-[var(--text-muted)]">지급 완료</span>
+              <span className="text-sm text-[var(--text-muted)]">{referralBalance.paid.toLocaleString()}원</span>
+            </div>
+            <div className="flex justify-between items-center border-t border-[var(--border)] pt-2">
+              <span className="text-sm font-semibold text-[var(--text)]">출금 가능</span>
+              <span className="text-sm font-bold text-[var(--primary)]">{referralBalance.pending.toLocaleString()}원</span>
+            </div>
+            <p className="text-xs text-[var(--text-muted)] mt-2">
+              남자 소개 {referralBalance.countMale}명(×5,000원) · 여자 소개 {referralBalance.countFemale}명(×15,000원)
+            </p>
+          </Card>
+          {referralBalance.pending > 0 && (
+            <button
+              onClick={() => setShowPayoutForm((v) => !v)}
+              className="w-full py-2.5 rounded-xl bg-[var(--primary)] text-white text-sm font-semibold mb-3"
+            >
+              {showPayoutForm ? '취소' : '지급 신청하기'}
+            </button>
+          )}
+          {showPayoutForm && (
+            <Card className="p-4 mb-3 flex flex-col gap-2">
+              <input placeholder="은행명" value={payoutForm.bankName}
+                onChange={(e) => setPayoutForm((f) => ({ ...f, bankName: e.target.value }))}
+                className="border border-[var(--border)] rounded-lg px-3 py-2 text-sm" />
+              <input placeholder="계좌번호" value={payoutForm.bankAccount}
+                onChange={(e) => setPayoutForm((f) => ({ ...f, bankAccount: e.target.value }))}
+                className="border border-[var(--border)] rounded-lg px-3 py-2 text-sm" />
+              <input placeholder="예금주" value={payoutForm.accountHolder}
+                onChange={(e) => setPayoutForm((f) => ({ ...f, accountHolder: e.target.value }))}
+                className="border border-[var(--border)] rounded-lg px-3 py-2 text-sm" />
+              <button
+                disabled={submittingPayout}
+                onClick={async () => {
+                  setSubmittingPayout(true);
+                  try {
+                    const res = await fetch('/api/referral/payouts', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ ...payoutForm, amount: referralBalance.pending }),
+                    });
+                    if (!res.ok) { alert((await res.json()).error); return; }
+                    setShowPayoutForm(false);
+                    setReferralBalance((b) => b ? { ...b, pending: 0, paid: b.paid + b.pending } : b);
+                  } finally { setSubmittingPayout(false); }
+                }}
+                className="py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-semibold disabled:opacity-50"
+              >
+                {submittingPayout ? '처리중...' : `${referralBalance.pending.toLocaleString()}원 신청`}
+              </button>
+            </Card>
+          )}
+          {referralPayouts.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs text-[var(--text-muted)] font-semibold">지급 이력</p>
+              {referralPayouts.map((p) => (
+                <Card key={p.id} className="flex justify-between items-center p-3">
+                  <span className="text-sm text-[var(--text)]">{p.amount_requested?.toLocaleString()}원</span>
+                  <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full",
+                    p.status === 'paid' ? "bg-green-100 text-green-700" :
+                    p.status === 'approved' ? "bg-blue-100 text-blue-700" :
+                    p.status === 'rejected' ? "bg-red-100 text-red-700" :
+                    "bg-yellow-100 text-yellow-700"
+                  )}>
+                    {p.status === 'paid' ? '지급완료' : p.status === 'approved' ? '승인됨' : p.status === 'rejected' ? '거절됨' : '검토중'}
+                  </span>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
