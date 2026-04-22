@@ -29,19 +29,19 @@ export async function PATCH(
 
   if ('approved' in body) {
     const { approved, note } = body as { approved: boolean; note?: string }
-    const { error } = await supabaseAdmin.rpc('verify_referral_profile', {
-      p_invitee_id: id,
-      p_approved: approved,
-      p_note: note,
-    })
-    if (error) return Response.json({ error: error.message }, { status: 500 })
 
-    const { data, error: fetchError } = await supabaseAdmin
+    // 운영진 최종 승인/거절: is_verified + rejection_reason 직접 업데이트
+    const update = approved
+      ? { is_verified: true, rejection_reason: null }
+      : { is_verified: false, rejection_reason: note ?? '운영진 검토 결과 미승인' }
+
+    const { data, error } = await supabaseAdmin
       .from('profiles')
-      .select('*')
+      .update(update)
       .eq('id', id)
+      .select('*')
       .single()
-    if (fetchError) return Response.json({ error: fetchError.message }, { status: 500 })
+    if (error) return Response.json({ error: error.message }, { status: 500 })
 
     notifyUser({
       userId: id,

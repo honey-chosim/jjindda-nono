@@ -62,7 +62,8 @@ export default function AdminUsersPage() {
                   <th className="text-left px-4 py-3 font-medium text-gray-600">거주지</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">가입일</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">온보딩</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">레퍼럴 검증</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">친구 검증</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">운영진 검증</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">상태</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">액션</th>
                 </tr>
@@ -93,13 +94,24 @@ export default function AdminUsersPage() {
                         {user.onboarding_completed ? '완료' : '미완료'}
                       </span>
                     </td>
+                    {/* 친구 검증 */}
+                    <td className="px-4 py-3">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                        user.verified_by_referrer
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {user.verified_by_referrer ? '완료' : '대기중'}
+                      </span>
+                    </td>
+                    {/* 운영진 검증 */}
                     <td className="px-4 py-3">
                       {user.is_verified ? (
                         <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
                           승인됨
                         </span>
-                      ) : user.verified_by_referrer === false ? (
-                        <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600">
+                      ) : user.rejection_reason ? (
+                        <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600" title={user.rejection_reason}>
                           거절됨
                         </span>
                       ) : (
@@ -145,7 +157,7 @@ export default function AdminUsersPage() {
                 ))}
                 {users.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-4 py-8 text-center text-gray-400">
+                    <td colSpan={11} className="px-4 py-8 text-center text-gray-400">
                       유저가 없습니다.
                     </td>
                   </tr>
