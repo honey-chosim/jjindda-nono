@@ -49,13 +49,12 @@ export async function PATCH(
     }
   }
 
-  // 상태 변경 시 기존 검증 SMS 이력 삭제 → 재시도 시 SMS 재발송 가능하게
-  async function clearVerificationSmsHistory(userId: string) {
+  async function clearSmsHistory(userId: string, keys: string[]) {
     await supabaseAdmin
       .from('sms_notifications')
       .delete()
       .eq('user_id', userId)
-      .in('template_key', ['profile_approved', 'profile_rejected'])
+      .in('template_key', keys)
       .eq('reference_id', userId)
   }
 
@@ -78,14 +77,13 @@ export async function PATCH(
     if (error) return Response.json({ error: error.message }, { status: 500 })
 
     if (approved) {
-      // 승인 시: 기존 거절 SMS 이력 삭제 (재거절 시 SMS 재발송 가능)
-      await clearVerificationSmsHistory(id)
+      // 승인 시: 승인+거절 이력 모두 삭제 (새 라운드 시작)
+      await clearSmsHistory(id, ['profile_approved', 'profile_rejected'])
       // 양쪽 검증 완료 시에만 SMS 발송
       await maybeNotifyFullyVerified(id)
     } else {
-      // 거절 시: 기존 승인 SMS 이력 삭제 (재승인 시 재발송)
-      await clearVerificationSmsHistory(id)
-      // 거절 SMS 즉시 발송 (await — serverless 종료 전 완료 보장)
+      // 거절 시: 승인 이력만 삭제 (거절 SMS는 dedup 유지 → 한번만 발송)
+      await clearSmsHistory(id, ['profile_approved'])
       try {
         await notifyUser({
           userId: id,
@@ -114,11 +112,11 @@ export async function PATCH(
     if (error) return Response.json({ error: error.message }, { status: 500 })
 
     if (friend_approved) {
-      await clearVerificationSmsHistory(id)
+      await clearSmsHistory(id, ['profile_approved', 'profile_rejected'])
       await maybeNotifyFullyVerified(id)
     } else {
-      await clearVerificationSmsHistory(id)
-      // 친구 검증 거절도 #7 SMS 발송
+      await clearSmsHistory(id, ['profile_approved'])
+      // 친구 검증 거절도 #7 SMS 발송 (dedup 유지 → 운영진+친구 모두 거절해도 1회)
       try {
         await notifyUser({
           userId: id,

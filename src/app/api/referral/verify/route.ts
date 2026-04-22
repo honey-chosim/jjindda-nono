@@ -39,12 +39,15 @@ export async function POST(req: NextRequest) {
   })
   if (rpcErr) return NextResponse.json({ error: rpcErr.message }, { status: 500 })
 
-  // 상태 변경 시 기존 profile_approved/rejected SMS 이력 삭제 (재시도 시 재발송 가능)
+  // 이력 정리: 승인 시 둘 다 삭제(새 라운드), 거절 시 승인만 삭제(거절 dedup 유지)
+  const keysToClear = approved
+    ? ['profile_approved', 'profile_rejected']
+    : ['profile_approved']
   await admin
     .from('sms_notifications')
     .delete()
     .eq('user_id', inviteeId)
-    .in('template_key', ['profile_approved', 'profile_rejected'])
+    .in('template_key', keysToClear)
     .eq('reference_id', inviteeId)
 
   if (approved) {
