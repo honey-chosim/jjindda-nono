@@ -43,13 +43,14 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { count } = await request.json()
+  const { count, label } = await request.json()
   const codeCount = Math.min(Math.max(1, count || 1), 20)
 
   const supabaseAdmin = getAdminClient()
   const codes = Array.from({ length: codeCount }, () => ({
     code: generateCode(),
     is_active: true,
+    label: label?.trim() || null,
   }))
 
   const { data, error } = await supabaseAdmin

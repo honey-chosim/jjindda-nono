@@ -8,6 +8,7 @@ export default function AdminInviteCodesPage() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [count, setCount] = useState(1)
+  const [label, setLabel] = useState('')
   const [generating, setGenerating] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [newCodes, setNewCodes] = useState<string[]>([])
@@ -32,7 +33,7 @@ export default function AdminInviteCodesPage() {
       const res = await fetch('/api/admin/invite-codes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ count }),
+        body: JSON.stringify({ count, label }),
       })
       if (res.ok) {
         const created: InviteCode[] = await res.json()
@@ -73,7 +74,7 @@ export default function AdminInviteCodesPage() {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-gray-900">초대코드</h2>
         <button
-          onClick={() => { setShowModal(true); setNewCodes([]) }}
+          onClick={() => { setShowModal(true); setNewCodes([]); setLabel('') }}
           className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
         >
           코드 생성
@@ -90,6 +91,7 @@ export default function AdminInviteCodesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">이름</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">코드</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">생성일</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">상태</th>
@@ -100,6 +102,7 @@ export default function AdminInviteCodesPage() {
               <tbody>
                 {codes.map((code) => (
                   <tr key={code.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="px-4 py-3 text-gray-500 text-sm">{code.label ?? '-'}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <span className="font-mono font-medium text-gray-900">{code.code}</span>
@@ -144,7 +147,7 @@ export default function AdminInviteCodesPage() {
                 ))}
                 {codes.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
+                    <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
                       초대코드가 없습니다.
                     </td>
                   </tr>
@@ -163,6 +166,18 @@ export default function AdminInviteCodesPage() {
 
             {newCodes.length === 0 ? (
               <>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    이름 (어드민 전용, 선택)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="예: 1기 남자 배치"
+                    value={label}
+                    onChange={(e) => setLabel(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  />
+                </div>
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     생성 개수 (1~20)

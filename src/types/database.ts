@@ -36,6 +36,7 @@ export interface Database {
           used_at: string | null
           is_active: boolean
           created_at: string
+          label: string | null
         }
         Insert: {
           id?: string
@@ -45,6 +46,7 @@ export interface Database {
           used_at?: string | null
           is_active?: boolean
           created_at?: string
+          label?: string | null
         }
         Update: {
           id?: string
