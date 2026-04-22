@@ -4,8 +4,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import ProfileCard from "@/components/profiles/ProfileCard";
 import BottomNav from "@/components/layout/BottomNav";
 import { getProfiles } from "@/services/profileService";
+import { getRequestQuota } from "@/services/requestService";
 import { getSupabaseClient } from "@/lib/supabase";
 import type { ProfileView } from "@/types/database";
+import type { RequestQuota } from "@/services/requestService";
 
 const INITIAL_COUNT = 12;
 const LOAD_MORE = 8;
@@ -15,25 +17,30 @@ export default function ProfilesPage() {
   const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
+  const [quota, setQuota] = useState<RequestQuota | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const visible = allProfiles.slice(0, visibleCount);
   const hasMore = visibleCount < allProfiles.length;
 
   useEffect(() => {
-    async function fetchProfiles() {
+    async function fetchData() {
       try {
         const supabase = getSupabaseClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        const profiles = await getProfiles(user.id);
+        const [profiles, quotaData] = await Promise.all([
+          getProfiles(user.id),
+          getRequestQuota(user.id),
+        ]);
         setAllProfiles(profiles);
+        setQuota(quotaData);
       } catch (err) {
         console.error("Failed to fetch profiles:", err);
       } finally {
         setIsFetching(false);
       }
     }
-    fetchProfiles();
+    fetchData();
   }, []);
 
   const loadMore = useCallback(() => {
@@ -67,7 +74,28 @@ export default function ProfilesPage() {
           borderBottom: "0.5px solid rgba(0,0,0,0.08)",
         }}
       >
-        <h1 className="text-[28px] font-black text-[#111827] tracking-[-0.03em]">탐색</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-[28px] font-black text-[#111827] tracking-[-0.03em]">탐색</h1>
+          {quota !== null && (
+            <div className="flex items-center gap-1.5">
+              <div
+                className={
+                  quota.available > 0
+                    ? "flex items-center gap-1 bg-[#111827] text-white text-xs font-semibold px-3 py-1.5 rounded-full"
+                    : "flex items-center gap-1 bg-[#F3F4F6] text-[#9CA3AF] text-xs font-semibold px-3 py-1.5 rounded-full"
+                }
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+                </svg>
+                요청권 {quota.available}개
+              </div>
+              {quota.activeSlots >= 3 && (
+                <span className="text-[11px] text-[var(--danger)] font-semibold">슬롯 만석</span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="px-4 pt-4">
