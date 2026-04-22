@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PhotoSwiper from "@/components/profiles/PhotoSwiper";
 import Modal from "@/components/ui/Modal";
-import { getReceivedRequests, acceptRequest, rejectRequest } from "@/services/requestService";
+import CountdownTimer from "@/components/ui/CountdownTimer";
+import { getReceivedRequests, rejectRequest } from "@/services/requestService";
 import { getSupabaseClient } from "@/lib/supabase";
 import type { RequestWithRequester } from "@/types/database";
 
@@ -22,6 +23,7 @@ export default function RequestDetailPage({
   const [showAcceptModal, setShowAcceptModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isExpired, setIsExpired] = useState(false);
 
   useEffect(() => {
     async function fetchRequest() {
@@ -33,6 +35,7 @@ export default function RequestDetailPage({
         const requests = await getReceivedRequests(user.id);
         const found = requests.find((r) => r.id === id) ?? null;
         setRequest(found);
+        if (found?.status === "expired") setIsExpired(true);
       } catch (err) {
         console.error("Failed to fetch request:", err);
       } finally {
@@ -61,7 +64,12 @@ export default function RequestDetailPage({
     if (!currentUserId || !request) return;
     setShowAcceptModal(false);
     try {
-      await acceptRequest(request.id, currentUserId);
+      const res = await fetch('/api/requests/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId: request.id }),
+      });
+      if (!res.ok) throw new Error('accept failed');
       router.push(`/match/${request.id}`);
     } catch (err) {
       console.error("Failed to accept request:", err);
@@ -201,7 +209,11 @@ export default function RequestDetailPage({
       )}
 
       <div className="fixed bottom-0 left-0 right-0 px-5 py-4 pb-safe" style={{background:"rgba(255,255,255,0.92)",backdropFilter:"blur(20px) saturate(180%)",WebkitBackdropFilter:"blur(20px) saturate(180%)",borderTop:"0.5px solid rgba(0,0,0,0.1)"}}>
-        {request.status === "accepted" ? (
+        {isExpired || request.status === "expired" ? (
+          <div className="w-full h-14 rounded-2xl bg-[#F3F4F6] flex items-center justify-center text-sm font-semibold text-[#9CA3AF]">
+            만료된 요청입니다
+          </div>
+        ) : request.status === "accepted" ? (
           <div className="flex flex-col gap-2">
             <p className="text-center text-sm font-medium text-[#16A34A]">상대방의 요청을 수락했어요!</p>
             <button
@@ -216,19 +228,28 @@ export default function RequestDetailPage({
             거절한 요청입니다
           </div>
         ) : (
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowRejectModal(true)}
-              className="flex-1 h-14 rounded-2xl border border-[var(--border)] text-sm font-semibold text-[var(--text)] hover:bg-gray-50 active:scale-[0.98] transition-all"
-            >
-              거절하기
-            </button>
-            <button
-              onClick={() => setShowAcceptModal(true)}
-              className="flex-1 h-14 rounded-2xl bg-[var(--primary)] text-white text-sm font-semibold hover:bg-[#1F2937] active:scale-[0.98] transition-all shadow-sm"
-            >
-              수락하기
-            </button>
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-center">
+              <CountdownTimer
+                expiresAt={new Date(new Date(request.created_at).getTime() + 24 * 60 * 60 * 1000).toISOString()}
+                onExpired={() => setIsExpired(true)}
+                compact
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowRejectModal(true)}
+                className="flex-1 h-14 rounded-2xl border border-[var(--border)] text-sm font-semibold text-[var(--text)] hover:bg-gray-50 active:scale-[0.98] transition-all"
+              >
+                거절하기
+              </button>
+              <button
+                onClick={() => setShowAcceptModal(true)}
+                className="flex-1 h-14 rounded-2xl bg-[var(--primary)] text-white text-sm font-semibold hover:bg-[#1F2937] active:scale-[0.98] transition-all shadow-sm"
+              >
+                수락하기
+              </button>
+            </div>
           </div>
         )}
       </div>
