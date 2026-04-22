@@ -226,9 +226,26 @@ export default function AdminUsersPage() {
                     <StatusBadge user={selected} />
                   </InfoRow>
                   <InfoRow label="친구 검증">
-                    <span className={`text-xs font-medium ${selected.verified_by_referrer ? 'text-emerald-700' : 'text-gray-500'}`}>
-                      {selected.verified_by_referrer ? '완료' : '대기중'}
-                    </span>
+                    {selected.verified_by_referrer ? (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-medium text-emerald-700">완료</span>
+                        <button
+                          onClick={() => patchUser(selected.id, { friend_approved: false })}
+                          disabled={actionId === selected.id}
+                          className="text-[10px] px-1.5 py-0.5 rounded border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          취소
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => patchUser(selected.id, { friend_approved: true })}
+                        disabled={actionId === selected.id}
+                        className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-medium hover:bg-blue-100 disabled:opacity-50"
+                      >
+                        친구 대신 승인
+                      </button>
+                    )}
                   </InfoRow>
                   <InfoRow label="온보딩">
                     <span className={selected.onboarding_completed ? 'text-emerald-700' : 'text-gray-500'}>

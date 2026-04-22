@@ -53,6 +53,21 @@ export async function PATCH(
     return Response.json(data)
   }
 
+  // 친구 검증 — 어드민이 대신 처리
+  if ('friend_approved' in body) {
+    const { friend_approved } = body as { friend_approved: boolean }
+
+    const { data, error } = await supabaseAdmin
+      .from('profiles')
+      .update({ verified_by_referrer: friend_approved })
+      .eq('id', id)
+      .select('*')
+      .single()
+    if (error) return Response.json({ error: error.message }, { status: 500 })
+
+    return Response.json(data)
+  }
+
   const { is_active } = body
   const { data, error } = await supabaseAdmin
     .from('profiles')
