@@ -115,7 +115,17 @@ export async function getReferredUsersToVerify(referrerId: string): Promise<Prof
 
   type Row = { used_by: string | null; invitee: Profile | null }
   const rows = (data ?? []) as unknown as Row[]
-  return rows
-    .map((r) => r.invitee)
-    .filter((p): p is Profile => p != null)
+  const invitees = rows.map((r) => r.invitee).filter((p): p is Profile => p != null)
+
+  if (invitees.length === 0) return []
+
+  // Exclude invitees already processed (any record in referral_verifications means done)
+  const { data: verified } = await supabase
+    .from('referral_verifications')
+    .select('invitee_id')
+    .eq('referrer_id', referrerId)
+    .in('invitee_id', invitees.map((p) => p.id))
+
+  const verifiedSet = new Set((verified ?? []).map((r) => r.invitee_id))
+  return invitees.filter((p) => !verifiedSet.has(p.id))
 }
