@@ -7,9 +7,10 @@ import BottomNav from "@/components/layout/BottomNav";
 import Card from "@/components/ui/Card";
 import { getMyProfile } from "@/services/profileService";
 import { getSentRequests } from "@/services/requestService";
+import { getReferredUsersToVerify, verifyReferralProfile } from "@/services/referralService";
 import { getSupabaseClient } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
-import type { ProfileView, DatingRequest } from "@/types/database";
+import type { ProfileView, DatingRequest, Profile } from "@/types/database";
 
 const statusLabel: Record<string, string> = {
   pending: "대기중",
@@ -33,6 +34,8 @@ export default function MyPage() {
   const [inviteCodes, setInviteCodes] = useState<InviteCodeRow[]>([]);
   const [generatingCode, setGeneratingCode] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [referralsToVerify, setReferralsToVerify] = useState<Profile[]>([]);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -40,14 +43,16 @@ export default function MyPage() {
         const supabase = getSupabaseClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        const [profileData, requestsData, codesRes] = await Promise.all([
+        const [profileData, requestsData, codesRes, referrals] = await Promise.all([
           getMyProfile(user.id),
           getSentRequests(user.id),
           fetch('/api/invite-codes/my'),
+          getReferredUsersToVerify(user.id),
         ]);
         setProfile(profileData);
         setSentRequests(requestsData);
         if (codesRes.ok) setInviteCodes(await codesRes.json());
+        setReferralsToVerify(referrals);
       } catch (err) {
         console.error("Failed to fetch my data:", err);
       } finally {
@@ -254,6 +259,53 @@ export default function MyPage() {
           )}
         </div>
       </div>
+
+      {/* 친구 검증 섹션 */}
+      {referralsToVerify.length > 0 && (
+        <div className="px-5 pt-4 pb-2">
+          <h2 className="text-base font-bold text-[var(--text)] mb-3">내가 초대한 친구 검증</h2>
+          <div className="flex flex-col gap-3">
+            {referralsToVerify.map((invitee) => (
+              <Card key={invitee.id} className="flex items-center gap-3 p-4">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-[var(--text)]">{invitee.name}</p>
+                  <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                    {invitee.gender === 'male' ? '남' : '여'} · {new Date().getFullYear() - invitee.birth_year}세
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    disabled={verifyingId === invitee.id}
+                    onClick={async () => {
+                      setVerifyingId(invitee.id);
+                      try {
+                        await verifyReferralProfile({ inviteeId: invitee.id, approved: false });
+                        setReferralsToVerify((prev) => prev.filter((p) => p.id !== invitee.id));
+                      } finally { setVerifyingId(null); }
+                    }}
+                    className="text-xs px-3 py-1.5 rounded-full border border-[var(--border)] text-[var(--text-muted)] disabled:opacity-50"
+                  >
+                    거절
+                  </button>
+                  <button
+                    disabled={verifyingId === invitee.id}
+                    onClick={async () => {
+                      setVerifyingId(invitee.id);
+                      try {
+                        await verifyReferralProfile({ inviteeId: invitee.id, approved: true });
+                        setReferralsToVerify((prev) => prev.filter((p) => p.id !== invitee.id));
+                      } finally { setVerifyingId(null); }
+                    }}
+                    className="text-xs px-3 py-1.5 rounded-full bg-[var(--primary)] text-white font-semibold disabled:opacity-50"
+                  >
+                    {verifyingId === invitee.id ? '처리중...' : '승인'}
+                  </button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       <BottomNav />
     </div>

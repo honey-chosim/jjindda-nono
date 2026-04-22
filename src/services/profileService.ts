@@ -33,6 +33,8 @@ export async function getProfiles(currentUserId: string): Promise<ProfileView[]>
     .select(PUBLIC_PROFILE_COLUMNS)
     .eq('is_active', true)
     .eq('onboarding_completed', true)
+    .eq('is_verified', true)
+    .eq('verified_by_referrer', true)
     .neq('id', currentUserId)
     .order('created_at', { ascending: false })
 
