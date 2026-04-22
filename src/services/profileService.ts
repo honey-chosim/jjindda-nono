@@ -44,18 +44,14 @@ export async function getProfileById(id: string): Promise<ProfileView | null> {
   return data ? toProfileView(data as Record<string, unknown>) : null
 }
 
-export async function getMyProfile(userId: string): Promise<ProfileView | null> {
-  const supabase = getRawSupabaseClient()
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single()
-
-  if (error) {
-    if (error.code === 'PGRST116') return null
-    throw error
+export async function getMyProfile(_userId: string): Promise<ProfileView | null> {
+  // 서버 라우트 경유 (service_role — RLS/세션 이슈 없이 본인 프로필 조회 확실)
+  const res = await fetch('/api/me', { cache: 'no-store' })
+  if (!res.ok) {
+    if (res.status === 401) return null
+    throw new Error((await res.json().catch(() => ({})))?.error ?? 'failed')
   }
+  const data = await res.json()
   return data ? toProfileView(data as Record<string, unknown>) : null
 }
 
