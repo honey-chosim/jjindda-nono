@@ -208,6 +208,26 @@ export default function MatchPage({
                     </p>
                   </div>
                 </div>
+
+                <button
+                  onClick={async () => {
+                    if (!confirm('상대방 대신 본인이 70,000원을 결제하고 단톡방을 빠르게 받으시겠어요?')) return
+                    const res = await fetch('/api/match/take-over-payment', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ matchId: match.id }),
+                    })
+                    if (!res.ok) {
+                      const j = await res.json().catch(() => ({}))
+                      alert(j.error ?? '실패했습니다')
+                      return
+                    }
+                    window.location.reload()
+                  }}
+                  className="w-full h-14 rounded-2xl bg-[var(--primary)] text-white text-lg font-bold hover:bg-[#1F2937] active:scale-[0.98] transition-all shadow-sm"
+                >
+                  💸 그냥 내가 결제하고 연락하기!
+                </button>
               </>
             )}
           </>
