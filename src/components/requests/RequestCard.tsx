@@ -20,6 +20,8 @@ interface RequestCardProps {
   profile: RequestCardProfile;
   /** "received" → /requests/[id], "sent" → /profiles/[targetId] */
   direction: "received" | "sent";
+  /** 매칭 정보 (status='accepted'일 때 결제 마감 카운트다운용) */
+  match?: { payment_expires_at: string | null; payment_status: string } | null;
   onExpired?: () => void;
 }
 
@@ -41,6 +43,7 @@ export default function RequestCard({
   status,
   profile,
   direction,
+  match,
   onExpired,
 }: RequestCardProps) {
   const currentYear = new Date().getFullYear();
@@ -98,6 +101,16 @@ export default function RequestCard({
             compact
             className="mt-1"
             label="수락 마감까지"
+          />
+        )}
+        {status === "accepted" && match && match.payment_expires_at &&
+         (match.payment_status === "pending" || match.payment_status === "pending_confirmation") && (
+          <CountdownTimer
+            expiresAt={match.payment_expires_at}
+            onExpired={onExpired}
+            compact
+            className="mt-1"
+            label="결제 마감까지"
           />
         )}
       </div>

@@ -81,40 +81,53 @@ export async function sendDatingRequest(
   return data as DatingRequest
 }
 
+type CardTargetProfile = {
+  id: string
+  name: string
+  photos: string[] | null
+  birth_year: number | null
+  job_title: string | null
+  residence_city: string | null
+  residence_district: string | null
+}
+
+type MatchInfo = { payment_expires_at: string | null; payment_status: string }
+
+function normalizeMatch<T extends { matches?: MatchInfo | MatchInfo[] | null }>(row: T): T & { match: MatchInfo | null } {
+  const m = row.matches
+  const match = Array.isArray(m) ? (m[0] ?? null) : (m ?? null)
+  return { ...row, match }
+}
+
 export async function getSentRequests(userId: string) {
   const supabase = getRawSupabaseClient()
   const { data, error } = await supabase
     .from('dating_requests')
-    .select(`*, target:profiles!dating_requests_target_id_fkey(id, name, photos, birth_year, job_title, residence_city, residence_district)`)
+    .select(`*, target:profiles!dating_requests_target_id_fkey(id, name, photos, birth_year, job_title, residence_city, residence_district), matches(payment_expires_at, payment_status)`)
     .eq('requester_id', userId)
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  type TargetProfile = {
-    id: string
-    name: string
-    photos: string[] | null
-    birth_year: number | null
-    job_title: string | null
-    residence_city: string | null
-    residence_district: string | null
-  }
-  return (data ?? []) as (DatingRequest & { target: TargetProfile | null })[]
+  return ((data ?? []) as (DatingRequest & { target: CardTargetProfile | null; matches?: MatchInfo | MatchInfo[] | null })[])
+    .map(normalizeMatch)
 }
 
-export async function getReceivedRequests(userId: string): Promise<RequestWithRequester[]> {
+export async function getReceivedRequests(userId: string): Promise<(RequestWithRequester & { match: MatchInfo | null })[]> {
   const supabase = getRawSupabaseClient()
   const { data, error } = await supabase
     .from('dating_requests')
     .select(`
       *,
-      requester:profiles!dating_requests_requester_id_fkey(*)
+      requester:profiles!dating_requests_requester_id_fkey(*),
+      matches(payment_expires_at, payment_status)
     `)
     .eq('target_id', userId)
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return ((data ?? []) as RequestWithRequester[]).filter((r) => r.requester != null)
+  return ((data ?? []) as (RequestWithRequester & { matches?: MatchInfo | MatchInfo[] | null })[])
+    .filter((r) => r.requester != null)
+    .map(normalizeMatch)
 }
 
 // REMOVED: legacy `acceptRequest()` direct-update path.

@@ -22,6 +22,11 @@ type SentRequest = DatingRequest & {
     residence_city: string | null
     residence_district: string | null
   } | null
+  match: { payment_expires_at: string | null; payment_status: string } | null
+};
+
+type ReceivedRequest = RequestWithRequester & {
+  match: { payment_expires_at: string | null; payment_status: string } | null
 };
 
 const statusLabel: Record<string, string> = {
@@ -45,7 +50,7 @@ function expiresAt(req: { expires_at?: string | null; created_at: string }): str
 
 export default function RequestsPage() {
   const [tab, setTab] = useState<"received" | "sent">("received");
-  const [received, setReceived] = useState<RequestWithRequester[]>([]);
+  const [received, setReceived] = useState<ReceivedRequest[]>([]);
   const [sent, setSent] = useState<SentRequest[]>([]);
   const [isFetching, setIsFetching] = useState(true);
   const [me, setMe] = useState<ProfileView | null>(null);
@@ -155,6 +160,7 @@ export default function RequestsPage() {
                     status={request.status}
                     profile={request.requester}
                     direction="received"
+                    match={request.match}
                     onExpired={() => handleRequestExpired(request.id)}
                   />
                 ) : null
@@ -178,6 +184,7 @@ export default function RequestsPage() {
                     status={req.status}
                     profile={req.target}
                     direction="sent"
+                    match={req.match}
                     onExpired={() => handleRequestExpired(req.id)}
                   />
                 ) : null
