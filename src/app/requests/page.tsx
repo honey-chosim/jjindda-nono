@@ -74,7 +74,12 @@ export default function RequestsPage() {
     );
   }, []);
 
-  const pendingCount = received.filter((r) => r.status === "pending").length;
+  const receivedPendingCount = received.filter((r) => r.status === "pending").length;
+  const sentActiveCount = sent.filter((r) => r.status === "pending" || r.status === "accepted").length;
+  const tabCounts: Record<"received" | "sent", number> = {
+    received: receivedPendingCount,
+    sent: sentActiveCount,
+  };
 
   return (
     <div className="min-h-dvh bg-white pb-28">
@@ -89,11 +94,6 @@ export default function RequestsPage() {
       >
         <div className="flex items-center gap-2.5 mb-3">
           <h1 className="text-[28px] font-black text-[#111827] tracking-[-0.03em]">요청</h1>
-          {verified && pendingCount > 0 && (
-            <span className="bg-[#DC2626] text-white text-[11px] font-bold px-2 py-0.5 rounded-full">
-              {pendingCount}
-            </span>
-          )}
         </div>
 
         {verified && (
@@ -103,13 +103,18 @@ export default function RequestsPage() {
                 key={t}
                 onClick={() => setTab(t)}
                 className={cn(
-                  "flex-1 pb-2.5 text-[14px] font-semibold border-b-2 transition-colors",
+                  "flex-1 pb-2.5 text-[14px] font-semibold border-b-2 transition-colors inline-flex items-center justify-center gap-1.5",
                   tab === t
                     ? "border-[#111827] text-[#111827]"
                     : "border-transparent text-[#9CA3AF]"
                 )}
               >
-                {t === "received" ? "받은 요청" : "보낸 요청"}
+                <span>{t === "received" ? "받은 요청" : "보낸 요청"}</span>
+                {tabCounts[t] > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 bg-[#DC2626] text-white text-[10px] font-bold rounded-full leading-none">
+                    {tabCounts[t]}
+                  </span>
+                )}
               </button>
             ))}
           </div>
