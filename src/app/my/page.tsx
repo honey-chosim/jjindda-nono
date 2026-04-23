@@ -431,7 +431,7 @@ export default function MyPage() {
             className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 bg-white border-b border-[var(--border)] px-5 py-4 flex items-center justify-between">
+            <div className="sticky top-0 z-20 bg-white border-b border-[var(--border)] px-5 py-4 flex items-center justify-between">
               <h3 className="text-base font-bold text-[var(--text)]">친구 검증</h3>
               <button
                 onClick={closeVerifyModal}
@@ -563,7 +563,7 @@ export default function MyPage() {
               </div>
             </div>
 
-            <div className="sticky bottom-0 bg-white border-t border-[var(--border)] px-5 py-4 flex gap-2">
+            <div className="sticky bottom-0 z-20 bg-white border-t border-[var(--border)] px-5 py-4 flex gap-2">
               <button
                 onClick={() => submitVerify(false)}
                 disabled={!!verifyingAction}
