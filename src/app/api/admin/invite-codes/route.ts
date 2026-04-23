@@ -25,16 +25,38 @@ export async function GET(_request: NextRequest) {
   }
 
   const supabaseAdmin = getAdminClient()
-  const { data, error } = await supabaseAdmin
+  // 시행착오 #5: invite_codes.created_by FK는 auth.users 참조라 profiles 임베드 불가 → 2-step 쿼리.
+  const { data: codes, error } = await supabaseAdmin
     .from('invite_codes')
-    .select('*, referrer:profiles!invite_codes_created_by_fkey(id, name, real_name)')
+    .select('*')
     .order('created_at', { ascending: false })
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 })
   }
 
-  return Response.json(data)
+  type CodeRow = { created_by: string | null }
+  const referrerIds = Array.from(
+    new Set(((codes ?? []) as CodeRow[]).map((c) => c.created_by).filter((x): x is string => !!x))
+  )
+
+  let referrerMap: Record<string, { id: string; name: string; real_name: string | null }> = {}
+  if (referrerIds.length > 0) {
+    const { data: referrers } = await supabaseAdmin
+      .from('profiles')
+      .select('id, name, real_name')
+      .in('id', referrerIds)
+    referrerMap = Object.fromEntries(
+      ((referrers ?? []) as { id: string; name: string; real_name: string | null }[]).map((p) => [p.id, p])
+    )
+  }
+
+  const enriched = (codes ?? []).map((c) => ({
+    ...c,
+    referrer: c.created_by ? referrerMap[c.created_by] ?? null : null,
+  }))
+
+  return Response.json(enriched)
 }
 
 export async function POST(request: NextRequest) {
