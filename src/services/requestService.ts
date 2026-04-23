@@ -3,47 +3,49 @@ import type { DatingRequest, RequestWithRequester } from '@/types/database'
 
 /**
  * v2 (Phase 1 RPC 기반): 3-slot + 송신권 정책을 RPC에서 enforce.
+ * 브라우저는 무조건 /api/requests/send 경유 — RPC 직접 호출하면 SMS/감사로그 누락 (CLAUDE.md 정책 #19).
  * 기존 sendDatingRequest()는 호환성 유지를 위해 남겨둠. 신규 코드는 sendDatingRequestV2 사용.
  */
 export async function sendDatingRequestV2(
-  requesterId: string,
+  _requesterId: string,
   targetId: string
 ): Promise<string> {
-  const supabase = getRawSupabaseClient()
-  const { data, error } = await supabase.rpc('send_dating_request', {
-    p_requester_id: requesterId,
-    p_target_id: targetId,
+  void _requesterId  // server derives from session
+  const res = await fetch('/api/requests/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targetId }),
   })
-  if (error) {
-    const code = (error as { code?: string }).code
-    if (code === 'P0001') throw new Error('동시 요청 최대 3개를 넘을 수 없어요.')
-    if (code === 'P0002') throw new Error('오늘의 요청권을 모두 사용했어요. 내일 오전 8시에 초기화돼요.')
-    if (code === '23505') throw new Error('이미 이 사람에게 보낸 요청이 있어요.')
-    throw error
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(json?.error ?? 'send failed')
   }
-  return data as string
+  return json.requestId as string
 }
 
 export async function cancelRequestV2(requestId: string): Promise<void> {
-  const supabase = getRawSupabaseClient()
-  const { error } = await supabase.rpc('cancel_dating_request', {
-    p_request_id: requestId,
+  const res = await fetch('/api/requests/cancel', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requestId }),
   })
-  if (error) throw error
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({ error: 'cancel failed' }))
+    throw new Error(error ?? 'cancel failed')
+  }
 }
 
 export async function acceptRequestV2(requestId: string): Promise<string> {
-  const supabase = getRawSupabaseClient()
-  const { data, error } = await supabase.rpc('accept_dating_request', {
-    p_request_id: requestId,
+  const res = await fetch('/api/requests/accept', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requestId }),
   })
-  if (error) {
-    const code = (error as { code?: string }).code
-    if (code === 'P0004') throw new Error('이미 응답한 요청이에요.')
-    if (code === 'P0005') throw new Error('만료된 요청이에요.')
-    throw error
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(json?.error ?? 'accept failed')
   }
-  return data as string
+  return json.matchId as string
 }
 
 /**

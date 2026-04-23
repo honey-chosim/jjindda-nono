@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient, createRawServerSupabaseClient } from '@/lib/supabase-server'
 import { createClient } from '@supabase/supabase-js'
-import { sendDatingRequestV2 } from '@/services/requestService'
 import { notifyUser } from '@/services/notificationService'
 
 function getAdminClient() {
@@ -20,8 +19,20 @@ export async function POST(req: NextRequest) {
   const { targetId } = await req.json()
   if (!targetId) return NextResponse.json({ error: 'targetId required' }, { status: 400 })
 
-  // Use V2 RPC — enforces 3-slot + quota policy
-  const requestId = await sendDatingRequestV2(user.id, targetId)
+  // Call RPC via session-bound supabase (auth.uid() check inside RPC requires user JWT).
+  // Use untyped raw client — postgrest-js v2 typed `.rpc()` resolves Args → undefined.
+  const rawSupabase = await createRawServerSupabaseClient()
+  const { data: requestId, error: rpcError } = await rawSupabase.rpc('send_dating_request', {
+    p_requester_id: user.id,
+    p_target_id: targetId,
+  })
+  if (rpcError) {
+    const code = (rpcError as { code?: string }).code
+    if (code === 'P0001') return NextResponse.json({ error: '동시 요청 최대 3개를 넘을 수 없어요.' }, { status: 409 })
+    if (code === 'P0002') return NextResponse.json({ error: '오늘의 요청권을 모두 사용했어요. 내일 오전 8시에 초기화돼요.' }, { status: 409 })
+    if (code === '23505') return NextResponse.json({ error: '이미 이 사람에게 보낸 요청이 있어요.' }, { status: 409 })
+    return NextResponse.json({ error: rpcError.message }, { status: 500 })
+  }
 
   // SMS #1: notify B (target) about incoming request
   const admin = getAdminClient()
@@ -32,7 +43,6 @@ export async function POST(req: NextRequest) {
 
   const requesterName = profiles?.find((p) => p.id === user.id)?.name ?? '상대방'
 
-  let smsDebug: unknown = null
   try {
     await notifyUser({
       userId: targetId,
@@ -40,19 +50,9 @@ export async function POST(req: NextRequest) {
       referenceId: requestId,
       vars: { requester_name: requesterName, request_id: requestId },
     })
-    smsDebug = 'attempted'
   } catch (e) {
     console.error('request_received SMS failed:', e)
-    smsDebug = String(e)
   }
 
-  const envCheck = {
-    SOLAPI_API_KEY: !!process.env.SOLAPI_API_KEY,
-    SOLAPI_API_SECRET: !!process.env.SOLAPI_API_SECRET,
-    SOLAPI_SENDER_NUMBER: !!process.env.SOLAPI_SENDER_NUMBER,
-    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? 'unset',
-  }
-
-  return NextResponse.json({ requestId, smsDebug, envCheck })
+  return NextResponse.json({ requestId })
 }

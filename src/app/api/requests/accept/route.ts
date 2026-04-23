@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient, createRawServerSupabaseClient } from '@/lib/supabase-server'
 import { createClient } from '@supabase/supabase-js'
 import { notifyUser } from '@/services/notificationService'
 
@@ -19,13 +19,18 @@ export async function POST(req: NextRequest) {
   const { requestId } = await req.json()
   if (!requestId) return NextResponse.json({ error: 'requestId required' }, { status: 400 })
 
-  const admin = getAdminClient()
-
-  // Use Phase 1 RPC: validates status, grants receive-bonus quota, creates match atomically
-  const { data: matchId, error: rpcError } = await admin
-    .rpc('accept_dating_request', { p_request_id: requestId })
+  // Phase 1 RPC requires auth.uid() == target_id — must run on the session-bound
+  // supabase (which carries the user's JWT). admin (service_role) has auth.uid()=NULL → 42501.
+  // Use untyped raw client — postgrest-js v2 typed `.rpc()` resolves Args → undefined.
+  const rawSupabase = await createRawServerSupabaseClient()
+  const { data: matchId, error: rpcError } = await rawSupabase.rpc('accept_dating_request', {
+    p_request_id: requestId,
+  })
 
   if (rpcError) return NextResponse.json({ error: rpcError.message }, { status: 500 })
+
+  // Admin client only for cross-user lookups + SMS dispatch (no auth.uid check needed).
+  const admin = getAdminClient()
 
   // Fetch request + profiles for notification
   const { data: drRow } = await admin

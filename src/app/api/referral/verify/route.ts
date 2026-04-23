@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient, createRawServerSupabaseClient } from '@/lib/supabase-server'
 import { createClient } from '@supabase/supabase-js'
 import { notifyUser } from '@/services/notificationService'
 
@@ -31,8 +31,13 @@ export async function POST(req: NextRequest) {
 
   if (!invite) return NextResponse.json({ error: 'Not your invitee' }, { status: 403 })
 
-  // verify_referral_profile RPC 호출 (profiles + referral_verifications 업데이트)
-  const { error: rpcErr } = await admin.rpc('verify_referral_profile', {
+  // verify_referral_profile RPC 호출 — 내부에서 auth.uid() == invite_codes.created_by 체크.
+  // 세션 supabase로 호출해야 JWT가 전달됨 (admin/service_role 은 auth.uid()=NULL → 42501).
+  // 단, postgrest-js v2 quirk 때문에 typed client 의 `Returns: void` RPC 는 Args 가 undefined 로
+  // resolve 됨 → 빌드 실패. 따라서 untyped raw 세션 client 사용.
+  void supabase
+  const rawSupabase = await createRawServerSupabaseClient()
+  const { error: rpcErr } = await rawSupabase.rpc('verify_referral_profile', {
     p_invitee_id: inviteeId,
     p_approved: approved,
     p_note: note ?? null,

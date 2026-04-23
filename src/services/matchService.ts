@@ -53,31 +53,36 @@ export async function markPaymentComplete(matchId: string, _userId?: string): Pr
 
 /**
  * v2 (Phase 1): "바로 수락하기" — B가 즉시 수락 + 결제 타이머 시작.
+ * 브라우저에서 직접 RPC 호출 금지 — 무조건 API route 경유 (CLAUDE.md 정책 #19).
  */
 export async function instantAcceptAndPay(requestId: string): Promise<string> {
-  const supabase = getRawSupabaseClient()
-  const { data, error } = await supabase.rpc('instant_accept_match', {
-    p_request_id: requestId,
+  const res = await fetch('/api/requests/instant-accept', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requestId }),
   })
-  if (error) {
-    const code = (error as { code?: string }).code
-    if (code === 'P0004') throw new Error('이미 응답한 요청이에요.')
-    if (code === 'P0005') throw new Error('만료된 요청이에요.')
-    throw error
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(json?.error ?? 'instant-accept failed')
   }
-  return data as string
+  return json.matchId as string
 }
 
 /**
  * 유저가 "이체 완료" 클릭 — pending_confirmation 으로 전환.
  * 관리자 확인 후 admin_mark_payment_paid RPC가 paid로 최종 전환.
+ * API route 경유 — RPC 가 auth.uid() == payer_id 체크.
  */
 export async function confirmPaymentTransfer(matchId: string): Promise<void> {
-  const supabase = getRawSupabaseClient()
-  const { error } = await supabase.rpc('confirm_payment_transfer', {
-    p_match_id: matchId,
+  const res = await fetch('/api/match/confirm-payment', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ matchId }),
   })
-  if (error) throw error
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({ error: 'confirm payment failed' }))
+    throw new Error(error ?? 'confirm payment failed')
+  }
 }
 
 export function getPaymentDeadline(match: { payment_expires_at: string | null; created_at: string }): Date {

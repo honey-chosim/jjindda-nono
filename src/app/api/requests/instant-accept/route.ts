@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient, createRawServerSupabaseClient } from '@/lib/supabase-server'
 import { createClient } from '@supabase/supabase-js'
 import { notifyUser } from '@/services/notificationService'
 
@@ -23,10 +23,13 @@ export async function POST(req: NextRequest) {
   const { requestId } = await req.json()
   if (!requestId) return NextResponse.json({ error: 'requestId required' }, { status: 400 })
 
-  const admin = getAdminClient()
-
-  const { data: matchId, error: rpcError } = await admin
-    .rpc('instant_accept_match', { p_request_id: requestId })
+  // RPC requires auth.uid() == target_id — must use session-bound supabase (JWT-carrying).
+  // admin (service_role) has auth.uid()=NULL → 42501.
+  // Use untyped raw client — postgrest-js v2 typed `.rpc()` resolves Args → undefined.
+  const rawSupabase = await createRawServerSupabaseClient()
+  const { data: matchId, error: rpcError } = await rawSupabase.rpc('instant_accept_match', {
+    p_request_id: requestId,
+  })
 
   if (rpcError) {
     const code = (rpcError as { code?: string }).code
@@ -34,6 +37,9 @@ export async function POST(req: NextRequest) {
     if (code === 'P0005') return NextResponse.json({ error: '만료된 요청이에요.' }, { status: 410 })
     return NextResponse.json({ error: rpcError.message }, { status: 500 })
   }
+
+  // Admin client only for cross-user lookup + SMS dispatch.
+  const admin = getAdminClient()
 
   // SMS #3 — requester(A)에게 "B가 수락했다" 알림
   const { data: drRow } = await admin
