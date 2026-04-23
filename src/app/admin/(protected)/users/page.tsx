@@ -66,6 +66,26 @@ export default function AdminUsersPage() {
     await patchUser(user.id, { approved: true })
   }
 
+  async function deleteUser(user: UserWithInvite) {
+    const confirmed = window.confirm(
+      `${user.real_name ?? user.name} (${user.phone}) 유저를 영구 삭제합니다.\n프로필, 매칭, 요청, SMS 이력 모두 삭제됩니다. 되돌릴 수 없습니다.\n\n계속하시겠어요?`
+    )
+    if (!confirmed) return
+    setActionId(user.id)
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setUsers((prev) => prev.filter((u) => u.id !== user.id))
+        setSelected(null)
+      } else {
+        const { error } = await res.json().catch(() => ({ error: 'failed' }))
+        alert(`삭제 실패: ${error}`)
+      }
+    } finally {
+      setActionId(null)
+    }
+  }
+
   async function handleReject(user: UserWithInvite, reason: string) {
     await patchUser(user.id, { approved: false, note: reason })
     setShowReject(false)
@@ -460,6 +480,13 @@ export default function AdminUsersPage() {
                     }`}
                   >
                     {selected.is_active ? '비활성화' : '활성화'}
+                  </button>
+                  <button
+                    onClick={() => deleteUser(selected)}
+                    disabled={actionId === selected.id}
+                    className="px-4 py-2.5 rounded-lg text-sm font-semibold border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    {actionId === selected.id ? '...' : '삭제'}
                   </button>
                 </div>
               )}

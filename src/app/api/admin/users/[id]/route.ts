@@ -141,3 +141,32 @@ export async function PATCH(
   if (error) return Response.json({ error: error.message }, { status: 500 })
   return Response.json(data)
 }
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  if (!(await checkAuth())) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { id } = await params
+  const supabaseAdmin = getAdminClient()
+
+  // 1. profiles 먼저 삭제 (FK CASCADE 의존하지 않고 명시적으로)
+  //    매칭/요청/SMS 등은 profiles FK ON DELETE CASCADE로 함께 정리됨.
+  const { error: profileErr } = await supabaseAdmin
+    .from('profiles')
+    .delete()
+    .eq('id', id)
+  if (profileErr) return Response.json({ error: profileErr.message }, { status: 500 })
+
+  // 2. auth.users 삭제 (재로그인 차단)
+  const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(id)
+  if (authErr) {
+    // auth 유저 삭제 실패해도 profile은 이미 삭제됨 — 로그만 남김
+    console.error('auth.users delete failed:', authErr)
+  }
+
+  return Response.json({ ok: true })
+}
