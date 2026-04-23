@@ -226,7 +226,7 @@ export default function ProfileDetailPage({
             onClick={() => router.push(`/match/${acceptedRequestId}`)}
             className="w-full h-14 rounded-2xl bg-[var(--primary)] text-white text-base font-semibold hover:bg-[#1F2937] active:scale-[0.98] transition-all shadow-sm"
           >
-            결제 페이지로 이동
+            💌 지금 연락하기
           </button>
         ) : pendingFromThem ? (
           <div className="flex flex-col gap-2">
