@@ -28,15 +28,26 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-html {
+html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* iOS 러버밴드/오버스크롤 방지 — fixed/sticky 헤더가 따라 움직이지 않게 */
+  overscroll-behavior: none;
+}
+
+html {
+  height: 100%;
+  /* body가 스크롤 컨테이너가 되도록 html을 잠금 → fixed/sticky가 viewport에 고정 */
+  overflow: hidden;
 }
 
 body {
   background-color: var(--bg);
   color: var(--text);
-  min-height: 100dvh;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
