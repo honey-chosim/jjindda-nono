@@ -224,7 +224,7 @@ export default function ProfileDetailPage({
         {acceptedRequestId ? (
           <button
             onClick={() => router.push(`/match/${acceptedRequestId}`)}
-            className="w-full h-14 rounded-2xl bg-[var(--primary)] text-white text-base font-semibold hover:bg-[#1F2937] active:scale-[0.98] transition-all shadow-sm"
+            className="w-full h-14 rounded-2xl bg-[var(--primary)] text-white text-lg font-bold hover:bg-[#1F2937] active:scale-[0.98] transition-all shadow-sm"
           >
             💌 지금 연락하기
           </button>
