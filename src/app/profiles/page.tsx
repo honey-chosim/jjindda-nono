@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import ProfileCard from "@/components/profiles/ProfileCard";
 import BottomNav from "@/components/layout/BottomNav";
-import { getProfiles } from "@/services/profileService";
+import { PendingReviewState, isFullyVerified } from "@/components/ui/PendingReview";
+import { getProfiles, getMyProfile } from "@/services/profileService";
 import { getRequestQuota } from "@/services/requestService";
 import { getSupabaseClient } from "@/lib/supabase";
 import type { ProfileView } from "@/types/database";
@@ -18,9 +19,11 @@ export default function ProfilesPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
   const [quota, setQuota] = useState<RequestQuota | null>(null);
+  const [me, setMe] = useState<ProfileView | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const visible = allProfiles.slice(0, visibleCount);
   const hasMore = visibleCount < allProfiles.length;
+  const verified = isFullyVerified(me);
 
   useEffect(() => {
     async function fetchData() {
@@ -28,6 +31,9 @@ export default function ProfilesPage() {
         const supabase = getSupabaseClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
+        const myProfile = await getMyProfile(user.id);
+        setMe(myProfile);
+        if (!isFullyVerified(myProfile)) return;
         const [profiles, quotaData] = await Promise.all([
           getProfiles(user.id),
           getRequestQuota(user.id),
@@ -76,7 +82,7 @@ export default function ProfilesPage() {
       >
         <div className="flex items-center justify-between">
           <h1 className="text-[28px] font-black text-[#111827] tracking-[-0.03em]">탐색</h1>
-          {quota !== null && (
+          {verified && quota !== null && (
             <div className="flex items-center gap-1.5">
               <div
                 className={
@@ -103,6 +109,8 @@ export default function ProfilesPage() {
           <div className="flex justify-center py-32">
             <div className="w-6 h-6 border-2 border-[#E5E7EB] border-t-[#111827] rounded-full animate-spin" />
           </div>
+        ) : !verified ? (
+          <PendingReviewState />
         ) : visible.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 text-center">
             <p className="text-[15px] font-semibold text-[#111827]">프로필이 없습니다</p>

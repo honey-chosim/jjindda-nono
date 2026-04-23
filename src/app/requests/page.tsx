@@ -6,8 +6,10 @@ import BottomNav from "@/components/layout/BottomNav";
 import RequestCard from "@/components/requests/RequestCard";
 import CountdownTimer from "@/components/ui/CountdownTimer";
 import { getReceivedRequests, getSentRequests } from "@/services/requestService";
+import { getMyProfile } from "@/services/profileService";
 import { getSupabaseClient } from "@/lib/supabase";
-import type { RequestWithRequester, DatingRequest } from "@/types/database";
+import { PendingReviewState, isFullyVerified } from "@/components/ui/PendingReview";
+import type { RequestWithRequester, DatingRequest, ProfileView } from "@/types/database";
 import { cn } from "@/lib/utils";
 
 type SentRequest = DatingRequest & { target: { id: string; name: string } | null };
@@ -36,6 +38,8 @@ export default function RequestsPage() {
   const [received, setReceived] = useState<RequestWithRequester[]>([]);
   const [sent, setSent] = useState<SentRequest[]>([]);
   const [isFetching, setIsFetching] = useState(true);
+  const [me, setMe] = useState<ProfileView | null>(null);
+  const verified = isFullyVerified(me);
 
   useEffect(() => {
     async function fetchAll() {
@@ -43,6 +47,9 @@ export default function RequestsPage() {
         const supabase = getSupabaseClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
+        const myProfile = await getMyProfile(user.id);
+        setMe(myProfile);
+        if (!isFullyVerified(myProfile)) return;
         const [receivedData, sentData] = await Promise.all([
           getReceivedRequests(user.id),
           getSentRequests(user.id),
@@ -82,29 +89,31 @@ export default function RequestsPage() {
       >
         <div className="flex items-center gap-2.5 mb-3">
           <h1 className="text-[28px] font-black text-[#111827] tracking-[-0.03em]">요청</h1>
-          {pendingCount > 0 && (
+          {verified && pendingCount > 0 && (
             <span className="bg-[#DC2626] text-white text-[11px] font-bold px-2 py-0.5 rounded-full">
               {pendingCount}
             </span>
           )}
         </div>
 
-        <div className="flex gap-0">
-          {(["received", "sent"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={cn(
-                "flex-1 pb-2.5 text-[14px] font-semibold border-b-2 transition-colors",
-                tab === t
-                  ? "border-[#111827] text-[#111827]"
-                  : "border-transparent text-[#9CA3AF]"
-              )}
-            >
-              {t === "received" ? "받은 요청" : "보낸 요청"}
-            </button>
-          ))}
-        </div>
+        {verified && (
+          <div className="flex gap-0">
+            {(["received", "sent"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={cn(
+                  "flex-1 pb-2.5 text-[14px] font-semibold border-b-2 transition-colors",
+                  tab === t
+                    ? "border-[#111827] text-[#111827]"
+                    : "border-transparent text-[#9CA3AF]"
+                )}
+              >
+                {t === "received" ? "받은 요청" : "보낸 요청"}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="px-4 pt-4">
@@ -112,6 +121,8 @@ export default function RequestsPage() {
           <div className="flex justify-center py-32">
             <div className="w-6 h-6 border-2 border-[#E5E7EB] border-t-[#111827] rounded-full animate-spin" />
           </div>
+        ) : !verified ? (
+          <PendingReviewState />
         ) : tab === "received" ? (
           received.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-32 text-center">

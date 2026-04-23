@@ -9,6 +9,7 @@ import { getMyProfile } from "@/services/profileService";
 import { getSentRequests } from "@/services/requestService";
 import { getReferredUsersToVerify, verifyReferralProfile } from "@/services/referralService";
 import { getSupabaseClient } from "@/lib/supabase";
+import { PendingReviewBanner, isFullyVerified } from "@/components/ui/PendingReview";
 import { cn } from "@/lib/utils";
 import type { ProfileView, DatingRequest, Profile, ReferralPayout } from "@/types/database";
 
@@ -129,6 +130,8 @@ export default function MyPage() {
       >
         <h1 className="text-[28px] font-black text-[#111827] tracking-[-0.03em]">MY</h1>
       </div>
+
+      {!isFullyVerified(profile) && <PendingReviewBanner />}
 
       <div className="px-4 pt-4 flex flex-col gap-4">
         <Card padding="none" className="overflow-hidden">
