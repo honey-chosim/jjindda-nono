@@ -1,17 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import BottomNav from "@/components/layout/BottomNav";
 import Card from "@/components/ui/Card";
 import { getMyProfile } from "@/services/profileService";
-import { getSentRequests } from "@/services/requestService";
-import { getReferredUsersToVerify, verifyReferralProfile } from "@/services/referralService";
+import { getMyReferredUsers, verifyReferralProfile } from "@/services/referralService";
 import { getSupabaseClient } from "@/lib/supabase";
 import { PendingReviewBanner, isFullyVerified } from "@/components/ui/PendingReview";
 import { cn } from "@/lib/utils";
-import type { ProfileView, DatingRequest, Profile, ReferralPayout } from "@/types/database";
+import type { ProfileView, Profile, ReferralPayout } from "@/types/database";
 
 interface ReferralBalance {
   totalEarned: number;
@@ -21,35 +20,33 @@ interface ReferralBalance {
   countFemale: number;
 }
 
-const statusLabel: Record<string, string> = {
-  pending: "대기중",
-  accepted: "수락됨",
-  rejected: "거절됨",
-  expired: "만료",
-};
-const statusColor: Record<string, string> = {
-  pending: "bg-yellow-100 text-yellow-700",
-  accepted: "bg-green-100 text-green-700",
-  rejected: "bg-gray-100 text-gray-500",
-  expired: "bg-gray-100 text-gray-400",
-};
-
 type InviteCodeRow = { id: string; code: string; used_by: string | null; is_active: boolean; created_at: string };
+
+type ReferredFriend = Profile & { my_verified: boolean };
+
+const COMMENT_MAX = 200;
 
 export default function MyPage() {
   const [profile, setProfile] = useState<ProfileView | null>(null);
-  const [sentRequests, setSentRequests] = useState<DatingRequest[]>([]);
   const [isFetching, setIsFetching] = useState(true);
   const [inviteCodes, setInviteCodes] = useState<InviteCodeRow[]>([]);
   const [generatingCode, setGeneratingCode] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
-  const [referralsToVerify, setReferralsToVerify] = useState<Profile[]>([]);
-  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [referredFriends, setReferredFriends] = useState<ReferredFriend[]>([]);
+  const [verifyTarget, setVerifyTarget] = useState<ReferredFriend | null>(null);
+  const [referrerComment, setReferrerComment] = useState("");
+  const [verifyingAction, setVerifyingAction] = useState<"approve" | "reject" | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [referralBalance, setReferralBalance] = useState<ReferralBalance | null>(null);
   const [referralPayouts, setReferralPayouts] = useState<ReferralPayout[]>([]);
   const [showPayoutForm, setShowPayoutForm] = useState(false);
   const [payoutForm, setPayoutForm] = useState({ bankName: "", bankAccount: "", accountHolder: "", amount: 0 });
   const [submittingPayout, setSubmittingPayout] = useState(false);
+
+  const refreshReferred = useCallback(async (userId: string) => {
+    const friends = await getMyReferredUsers(userId);
+    setReferredFriends(friends);
+  }, []);
 
   useEffect(() => {
     async function fetchData() {
@@ -57,17 +54,16 @@ export default function MyPage() {
         const supabase = getSupabaseClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        const [profileData, requestsData, codesRes, referrals, referralRes] = await Promise.all([
+        setCurrentUserId(user.id);
+        const [profileData, codesRes, friends, referralRes] = await Promise.all([
           getMyProfile(user.id),
-          getSentRequests(user.id),
           fetch('/api/invite-codes/my'),
-          getReferredUsersToVerify(user.id),
+          getMyReferredUsers(user.id),
           fetch('/api/referral/payouts'),
         ]);
         setProfile(profileData);
-        setSentRequests(requestsData);
         if (codesRes.ok) setInviteCodes(await codesRes.json());
-        setReferralsToVerify(referrals);
+        setReferredFriends(friends);
         if (referralRes.ok) {
           const rd = await referralRes.json();
           setReferralBalance(rd.balance);
@@ -99,6 +95,38 @@ export default function MyPage() {
       setCopiedCode(code);
       setTimeout(() => setCopiedCode(null), 2000);
     });
+  }
+
+  function openVerifyModal(friend: ReferredFriend) {
+    setVerifyTarget(friend);
+    setReferrerComment("");
+  }
+
+  function closeVerifyModal() {
+    if (verifyingAction) return;
+    setVerifyTarget(null);
+    setReferrerComment("");
+  }
+
+  async function submitVerify(approved: boolean) {
+    if (!verifyTarget || !currentUserId) return;
+    setVerifyingAction(approved ? "approve" : "reject");
+    try {
+      const trimmed = referrerComment.trim();
+      await verifyReferralProfile({
+        inviteeId: verifyTarget.id,
+        approved,
+        referrerComment: approved && trimmed ? trimmed : undefined,
+      });
+      await refreshReferred(currentUserId);
+      setVerifyTarget(null);
+      setReferrerComment("");
+    } catch (err) {
+      console.error("verify failed:", err);
+      alert("처리 중 오류가 발생했습니다");
+    } finally {
+      setVerifyingAction(null);
+    }
   }
 
   if (isFetching) {
@@ -241,93 +269,75 @@ export default function MyPage() {
           )}
         </div>
 
+        {/* 내가 초대한 친구 (검증 + 검증완료 통합) */}
         <div>
-          <h2 className="text-base font-bold text-[var(--text)] mb-3">보낸 요청</h2>
-          {sentRequests.length === 0 ? (
+          <h2 className="text-base font-bold text-[var(--text)] mb-3">내가 초대한 친구</h2>
+          {referredFriends.length === 0 ? (
             <Card>
-              <div className="py-8 text-center">
-                <p className="text-2xl mb-2">💌</p>
-                <p className="text-sm text-[var(--text-muted)]">아직 보낸 요청이 없습니다</p>
+              <div className="py-6 text-center">
+                <p className="text-sm text-[var(--text-muted)]">아직 초대한 친구가 없어요</p>
               </div>
             </Card>
           ) : (
             <div className="flex flex-col gap-3">
-              {sentRequests.map((req) => (
-                <Card key={req.id} padding="sm">
-                  <div className="flex items-center justify-between gap-3 px-2 py-1">
-                    <div>
-                      <p className="text-sm font-semibold text-[var(--text)]">{(req as { target?: { name: string } | null }).target?.name ?? "알 수 없음"}</p>
-                      <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                        {new Date(req.created_at).toLocaleDateString("ko-KR", {
-                          month: "long",
-                          day: "numeric",
-                        })}
-                      </p>
+              {referredFriends.map((friend) => {
+                const age = new Date().getFullYear() - friend.birth_year + 1;
+                const residence = friend.residence_district
+                  ? `${friend.residence_city} ${friend.residence_district}`
+                  : (friend.residence_city ?? "");
+                return (
+                  <Card key={friend.id} padding="sm">
+                    <div className="flex items-center gap-3 p-2">
+                      <div className="relative w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100">
+                        {friend.photos?.[0] ? (
+                          <Image src={friend.photos[0]} alt={friend.name} fill className="object-cover" sizes="56px" />
+                        ) : (
+                          <div className="w-full h-full bg-gray-200" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-[var(--text)] truncate">{friend.name}</p>
+                        <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                          {friend.gender === 'male' ? '남' : '여'} · {age}세
+                          {residence ? ` · ${residence}` : ''}
+                        </p>
+                        <div className="mt-1.5">
+                          {friend.my_verified ? (
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                              내 검증 완료
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
+                              검증 대기
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0">
+                        {friend.my_verified ? (
+                          <Link
+                            href={`/profiles/${friend.id}`}
+                            className="text-xs font-semibold px-3 py-1.5 rounded-full border border-[var(--border)] text-[var(--text)]"
+                          >
+                            프로필 보기
+                          </Link>
+                        ) : (
+                          <button
+                            onClick={() => openVerifyModal(friend)}
+                            className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[var(--primary)] text-white active:scale-95"
+                          >
+                            검증하기
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={cn("text-xs font-semibold px-2.5 py-1 rounded-full", statusColor[req.status])}>
-                        {statusLabel[req.status]}
-                      </span>
-                      {req.status === "accepted" && (
-                        <Link href={`/profiles/${req.target_id}`} className="text-xs text-[var(--primary)] font-medium">
-                          보기 →
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
       </div>
-
-      {/* 친구 검증 섹션 */}
-      {referralsToVerify.length > 0 && (
-        <div className="px-5 pt-4 pb-2">
-          <h2 className="text-base font-bold text-[var(--text)] mb-3">내가 초대한 친구 검증</h2>
-          <div className="flex flex-col gap-3">
-            {referralsToVerify.map((invitee) => (
-              <Card key={invitee.id} className="flex items-center gap-3 p-4">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-[var(--text)]">{invitee.name}</p>
-                  <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                    {invitee.gender === 'male' ? '남' : '여'} · {new Date().getFullYear() - invitee.birth_year}세
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    disabled={verifyingId === invitee.id}
-                    onClick={async () => {
-                      setVerifyingId(invitee.id);
-                      try {
-                        await verifyReferralProfile({ inviteeId: invitee.id, approved: false });
-                        setReferralsToVerify((prev) => prev.filter((p) => p.id !== invitee.id));
-                      } finally { setVerifyingId(null); }
-                    }}
-                    className="text-xs px-3 py-1.5 rounded-full border border-[var(--border)] text-[var(--text-muted)] disabled:opacity-50"
-                  >
-                    거절
-                  </button>
-                  <button
-                    disabled={verifyingId === invitee.id}
-                    onClick={async () => {
-                      setVerifyingId(invitee.id);
-                      try {
-                        await verifyReferralProfile({ inviteeId: invitee.id, approved: true });
-                        setReferralsToVerify((prev) => prev.filter((p) => p.id !== invitee.id));
-                      } finally { setVerifyingId(null); }
-                    }}
-                    className="text-xs px-3 py-1.5 rounded-full bg-[var(--primary)] text-white font-semibold disabled:opacity-50"
-                  >
-                    {verifyingId === invitee.id ? '처리중...' : '승인'}
-                  </button>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* 레퍼럴 수익 섹션 */}
       {referralBalance && referralBalance.totalEarned > 0 && (
@@ -408,6 +418,132 @@ export default function MyPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* 검증 모달 */}
+      {verifyTarget && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center"
+          onClick={closeVerifyModal}
+        >
+          <div
+            className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-white border-b border-[var(--border)] px-5 py-4 flex items-center justify-between">
+              <h3 className="text-base font-bold text-[var(--text)]">친구 검증</h3>
+              <button
+                onClick={closeVerifyModal}
+                disabled={!!verifyingAction}
+                className="text-[var(--text-muted)] text-xl leading-none disabled:opacity-30"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 flex flex-col gap-5">
+              {/* 프로필 미리보기 */}
+              <div className="flex items-center gap-3">
+                <div className="relative w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 bg-gray-100">
+                  {verifyTarget.photos?.[0] ? (
+                    <Image src={verifyTarget.photos[0]} alt={verifyTarget.name} fill className="object-cover" sizes="80px" />
+                  ) : (
+                    <div className="w-full h-full bg-gray-200" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-base font-bold text-[var(--text)]">{verifyTarget.name}</p>
+                  <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                    {verifyTarget.gender === 'male' ? '남' : '여'} · {new Date().getFullYear() - verifyTarget.birth_year + 1}세
+                    {verifyTarget.height ? ` · ${verifyTarget.height}cm` : ''}
+                  </p>
+                  <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate">
+                    {verifyTarget.residence_city
+                      ? `${verifyTarget.residence_city}${verifyTarget.residence_district ? ` ${verifyTarget.residence_district}` : ''}`
+                      : '거주지 미입력'}
+                  </p>
+                </div>
+              </div>
+
+              {/* 추가 사진 */}
+              {verifyTarget.photos && verifyTarget.photos.length > 1 && (
+                <div className="grid grid-cols-3 gap-2">
+                  {verifyTarget.photos.slice(1, 4).map((photo, i) => (
+                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-gray-100">
+                      <Image src={photo} alt="" fill sizes="120px" className="object-cover" />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 기본 정보 */}
+              <div className="bg-[var(--bg)] rounded-2xl divide-y divide-[var(--border)]">
+                {[
+                  { label: '학력', value: verifyTarget.education && verifyTarget.school ? `${verifyTarget.education} · ${verifyTarget.school}` : (verifyTarget.education || verifyTarget.school) },
+                  { label: '직장', value: verifyTarget.company },
+                  { label: '직업', value: verifyTarget.job_title },
+                  { label: 'MBTI', value: verifyTarget.mbti },
+                ].filter((r) => r.value).map((r) => (
+                  <div key={r.label} className="flex gap-4 px-4 py-2.5">
+                    <span className="text-xs text-[var(--text-muted)] w-12 flex-shrink-0 pt-0.5">{r.label}</span>
+                    <span className="text-sm text-[var(--text)] break-words">{r.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* 자기소개 */}
+              {verifyTarget.bio && (
+                <div>
+                  <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">자기소개</p>
+                  <div className="bg-[var(--bg)] rounded-2xl p-3">
+                    <p className="text-sm text-[var(--text)] leading-relaxed whitespace-pre-wrap">{verifyTarget.bio}</p>
+                  </div>
+                </div>
+              )}
+
+              <Link
+                href={`/profiles/${verifyTarget.id}`}
+                className="block text-center text-xs font-semibold text-[var(--primary)] underline underline-offset-2"
+              >
+                전체 프로필 보기 →
+              </Link>
+
+              {/* 소개자의 한마디 */}
+              <div>
+                <label className="block text-sm font-semibold text-[var(--text)] mb-1.5">
+                  소개자의 한마디 <span className="text-xs font-normal text-[var(--text-muted)]">(선택)</span>
+                </label>
+                <textarea
+                  value={referrerComment}
+                  onChange={(e) => setReferrerComment(e.target.value.slice(0, COMMENT_MAX))}
+                  placeholder="소개자만의 시각으로 친구를 한 줄 소개해주세요. 비워두셔도 됩니다."
+                  rows={3}
+                  className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+                />
+                <p className="text-[11px] text-[var(--text-muted)] mt-1 text-right">
+                  {referrerComment.length}/{COMMENT_MAX}
+                </p>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-white border-t border-[var(--border)] px-5 py-4 flex gap-2">
+              <button
+                onClick={() => submitVerify(false)}
+                disabled={!!verifyingAction}
+                className="flex-1 h-12 rounded-xl border border-[var(--border)] text-sm font-semibold text-[var(--text-muted)] disabled:opacity-50"
+              >
+                {verifyingAction === 'reject' ? '처리중...' : '거절'}
+              </button>
+              <button
+                onClick={() => submitVerify(true)}
+                disabled={!!verifyingAction}
+                className="flex-1 h-12 rounded-xl bg-[var(--primary)] text-white text-sm font-semibold disabled:opacity-50"
+              >
+                {verifyingAction === 'approve' ? '처리중...' : '승인하기'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

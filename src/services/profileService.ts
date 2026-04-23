@@ -16,7 +16,7 @@ function toProfileView(p: Record<string, unknown>): ProfileView {
 }
 
 // Columns returned for other users — phone excluded for privacy
-const PUBLIC_PROFILE_COLUMNS = 'id,name,gender,birth_year,birth_month,birth_day,height,education,school,company,job_title,residence_city,residence_district,smoking,drinking,mbti,hobbies,pet,bio,photos,is_active,onboarding_completed,created_at,updated_at'
+const PUBLIC_PROFILE_COLUMNS = 'id,name,gender,birth_year,birth_month,birth_day,height,education,school,company,job_title,residence_city,residence_district,smoking,drinking,mbti,hobbies,pet,bio,photos,referrer_comment,is_active,onboarding_completed,created_at,updated_at'
 
 export async function getProfiles(_currentUserId: string): Promise<ProfileView[]> {
   // 서버 라우트 경유 (service_role 사용 → RLS/세션 이슈 없이 성별 필터 확실히 적용)

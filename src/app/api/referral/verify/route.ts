@@ -16,8 +16,8 @@ export async function POST(req: NextRequest) {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { inviteeId, approved, note } = await req.json() as {
-    inviteeId: string; approved: boolean; note?: string
+  const { inviteeId, approved, note, referrerComment } = await req.json() as {
+    inviteeId: string; approved: boolean; note?: string; referrerComment?: string
   }
 
   // 권한: invite_codes에서 내가 초대한 invitee인지 확인
@@ -43,6 +43,17 @@ export async function POST(req: NextRequest) {
     p_note: note ?? null,
   })
   if (rpcErr) return NextResponse.json({ error: rpcErr.message }, { status: 500 })
+
+  // 승인 시 소개자 한마디(선택)를 invitee의 profile에 저장
+  if (approved) {
+    const trimmed = referrerComment?.trim()
+    if (trimmed) {
+      await admin
+        .from('profiles')
+        .update({ referrer_comment: trimmed })
+        .eq('id', inviteeId)
+    }
+  }
 
   // 이력 정리: 승인 시 둘 다 삭제(새 라운드), 거절 시 승인만 삭제(거절 dedup 유지)
   const keysToClear = approved

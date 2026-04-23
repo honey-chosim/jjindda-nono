@@ -89,6 +89,7 @@ export async function verifyReferralProfile(args: {
   inviteeId: string
   approved: boolean
   note?: string
+  referrerComment?: string
 }): Promise<void> {
   const res = await fetch('/api/referral/verify', {
     method: 'POST',
@@ -99,6 +100,42 @@ export async function verifyReferralProfile(args: {
     const { error } = await res.json().catch(() => ({ error: 'verify failed' }))
     throw new Error(error)
   }
+}
+
+/**
+ * 내가 레퍼럴한 친구 전부 (검증 상태 무관).
+ * 각 항목은 my_verified 플래그(=verified_by_referrer)를 포함하여 UI 에서 분기 가능.
+ *
+ * 2-step 쿼리: invite_codes.used_by 가 auth.users 를 가리키므로 PostgREST relationship 사용 불가.
+ */
+export async function getMyReferredUsers(
+  referrerId: string,
+): Promise<Array<Profile & { my_verified: boolean }>> {
+  const supabase = getRawSupabaseClient()
+
+  const { data: codes, error: codesErr } = await supabase
+    .from('invite_codes')
+    .select('used_by')
+    .eq('created_by', referrerId)
+    .not('used_by', 'is', null)
+
+  if (codesErr) throw codesErr
+
+  const inviteeIds = ((codes ?? []) as { used_by: string | null }[])
+    .map((c) => c.used_by)
+    .filter((id): id is string => !!id)
+  if (inviteeIds.length === 0) return []
+
+  const { data: profiles, error: profErr } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', inviteeIds)
+
+  if (profErr) throw profErr
+  return ((profiles ?? []) as Profile[]).map((p) => ({
+    ...p,
+    my_verified: !!p.verified_by_referrer,
+  }))
 }
 
 /**

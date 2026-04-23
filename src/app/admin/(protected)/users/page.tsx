@@ -326,6 +326,14 @@ export default function AdminUsersPage() {
                 </section>
               )}
 
+              {/* 소개자 한마디 */}
+              {selected.referrer_comment && (
+                <section>
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">소개자 한마디</h4>
+                  <p className="text-sm text-gray-800 bg-amber-50 border border-amber-200 rounded-lg p-3 whitespace-pre-wrap">{selected.referrer_comment}</p>
+                </section>
+              )}
+
               {/* 이상형 */}
               <section>
                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">이상형</h4>

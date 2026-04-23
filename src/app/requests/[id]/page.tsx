@@ -135,6 +135,13 @@ export default function RequestDetailPage({
           <p className="text-sm text-[var(--text-muted)] mt-1">{requesterResidence}</p>
         </div>
 
+        {requester.referrer_comment && (
+          <div className="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3">
+            <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">소개자 한마디</p>
+            <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{requester.referrer_comment}</p>
+          </div>
+        )}
+
         <div className="h-px bg-[var(--border)]" />
 
         <section>
