@@ -44,6 +44,8 @@ export async function POST(req: NextRequest) {
 
   if (profile) {
     userId = profile.id
+    // Email 동기화: 도메인 변경(jjinda → jjindda) 같은 변동에도 OTP 로그인 무중단
+    await supabaseAdmin.auth.admin.updateUserById(userId, { email: syntheticEmail })
   } else {
     // New user
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
