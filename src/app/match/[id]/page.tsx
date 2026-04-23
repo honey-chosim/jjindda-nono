@@ -4,7 +4,7 @@ import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import CountdownTimer from "@/components/ui/CountdownTimer";
-import { getMatchByRequestId, markPaymentComplete, getPaymentDeadline } from "@/services/matchService";
+import { getMatchById, getMatchByRequestId, markPaymentComplete, getPaymentDeadline } from "@/services/matchService";
 import { getSupabaseClient } from "@/lib/supabase";
 import type { MatchWithProfiles } from "@/types/database";
 
@@ -36,7 +36,9 @@ export default function MatchPage({
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
         setCurrentUserId(user.id);
-        const matchData = await getMatchByRequestId(id);
+        // URL param can be either match.id (SMS link uses this) or request.id (B's accept redirect uses this).
+        // Try match.id first; fall back to request_id.
+        const matchData = (await getMatchById(id)) ?? (await getMatchByRequestId(id));
         setMatch(matchData);
         if (matchData?.payment_status === 'paid') setPaid(true);
         if (matchData?.payment_status === 'expired') setPaymentExpired(true);
