@@ -85,11 +85,19 @@ export default function AdminRequestsPage() {
                           {status.label}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-500">
-                        {new Date(req.created_at).toLocaleDateString('ko-KR')}
+                      <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">
+                        {new Date(req.created_at).toLocaleString('ko-KR', {
+                          year: '2-digit', month: '2-digit', day: '2-digit',
+                          hour: '2-digit', minute: '2-digit', hour12: false,
+                        })}
                       </td>
-                      <td className="px-4 py-3 text-gray-500">
-                        {new Date(req.updated_at).toLocaleDateString('ko-KR')}
+                      <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">
+                        {req.status === 'accepted'
+                          ? new Date(req.updated_at).toLocaleString('ko-KR', {
+                              year: '2-digit', month: '2-digit', day: '2-digit',
+                              hour: '2-digit', minute: '2-digit', hour12: false,
+                            })
+                          : '-'}
                       </td>
                     </tr>
                   )
