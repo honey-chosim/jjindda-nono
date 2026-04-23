@@ -85,12 +85,21 @@ export async function getSentRequests(userId: string) {
   const supabase = getRawSupabaseClient()
   const { data, error } = await supabase
     .from('dating_requests')
-    .select(`*, target:profiles!dating_requests_target_id_fkey(id, name)`)
+    .select(`*, target:profiles!dating_requests_target_id_fkey(id, name, photos, birth_year, job_title, residence_city, residence_district)`)
     .eq('requester_id', userId)
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return (data ?? []) as (DatingRequest & { target: { id: string; name: string } | null })[]
+  type TargetProfile = {
+    id: string
+    name: string
+    photos: string[] | null
+    birth_year: number | null
+    job_title: string | null
+    residence_city: string | null
+    residence_district: string | null
+  }
+  return (data ?? []) as (DatingRequest & { target: TargetProfile | null })[]
 }
 
 export async function getReceivedRequests(userId: string): Promise<RequestWithRequester[]> {

@@ -12,7 +12,17 @@ import { PendingReviewState, isFullyVerified } from "@/components/ui/PendingRevi
 import type { RequestWithRequester, DatingRequest, ProfileView } from "@/types/database";
 import { cn } from "@/lib/utils";
 
-type SentRequest = DatingRequest & { target: { id: string; name: string } | null };
+type SentRequest = DatingRequest & {
+  target: {
+    id: string
+    name: string
+    photos: string[] | null
+    birth_year: number | null
+    job_title: string | null
+    residence_city: string | null
+    residence_district: string | null
+  } | null
+};
 
 const statusLabel: Record<string, string> = {
   pending: "대기중",
@@ -136,13 +146,19 @@ export default function RequestsPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {received.map((request) => (
-                <RequestCard
-                  key={request.id}
-                  request={request}
-                  onExpired={() => handleRequestExpired(request.id)}
-                />
-              ))}
+              {received.map((request) =>
+                request.requester ? (
+                  <RequestCard
+                    key={request.id}
+                    requestId={request.id}
+                    createdAt={request.created_at}
+                    status={request.status}
+                    profile={request.requester}
+                    direction="received"
+                    onExpired={() => handleRequestExpired(request.id)}
+                  />
+                ) : null
+              )}
             </div>
           )
         ) : (
@@ -153,36 +169,19 @@ export default function RequestsPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {sent.map((req) => (
-                <div key={req.id} className="flex items-center gap-4 bg-white rounded-2xl border border-[var(--border)] p-4 shadow-sm">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-[#111827]">
-                      {req.target?.name ?? "알 수 없음"}
-                    </p>
-                    <p className="text-xs text-[#9CA3AF] mt-0.5">
-                      {new Date(req.created_at).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} 신청
-                    </p>
-                    {req.status === "pending" && (
-                      <CountdownTimer
-                        expiresAt={expiresAt(req)}
-                        onExpired={() => handleRequestExpired(req.id)}
-                        compact
-                        className="mt-1"
-                      />
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className={cn("text-xs font-semibold px-2.5 py-1 rounded-full", statusColor[req.status])}>
-                      {statusLabel[req.status]}
-                    </span>
-                    {req.status === "accepted" && req.target && (
-                      <Link href={`/profiles/${req.target_id}`} className="text-xs text-[#111827] font-medium">
-                        보기 →
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              ))}
+              {sent.map((req) =>
+                req.target ? (
+                  <RequestCard
+                    key={req.id}
+                    requestId={req.id}
+                    createdAt={req.created_at}
+                    status={req.status}
+                    profile={req.target}
+                    direction="sent"
+                    onExpired={() => handleRequestExpired(req.id)}
+                  />
+                ) : null
+              )}
             </div>
           )
         )}
