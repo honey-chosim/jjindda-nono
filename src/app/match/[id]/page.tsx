@@ -116,6 +116,7 @@ export default function MatchPage({
                 <CountdownTimer
                   expiresAt={deadlineIso}
                   onExpired={() => setPaymentExpired(true)}
+                  label="결제 마감까지"
                 />
               </div>
             )}

@@ -97,6 +97,7 @@ export default function RequestCard({
             onExpired={onExpired}
             compact
             className="mt-1"
+            label="수락 마감까지"
           />
         )}
       </div>

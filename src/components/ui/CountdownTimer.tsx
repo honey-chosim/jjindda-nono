@@ -8,6 +8,8 @@ interface CountdownTimerProps {
   onExpired?: () => void;
   className?: string;
   compact?: boolean;
+  /** 카운트다운 앞에 붙는 라벨 (예: "수락 마감까지", "결제 마감까지") */
+  label?: string;
 }
 
 function msToHMS(ms: number): { h: number; m: number; s: number } {
@@ -27,6 +29,7 @@ export default function CountdownTimer({
   onExpired,
   className,
   compact = false,
+  label,
 }: CountdownTimerProps) {
   const [remaining, setRemaining] = useState(
     () => new Date(expiresAt).getTime() - Date.now()
@@ -59,6 +62,8 @@ export default function CountdownTimer({
   const { h, m, s } = msToHMS(remaining);
   const isUrgent = remaining < 60 * 60 * 1000;
 
+  const time = `${pad(h)}:${pad(m)}:${pad(s)}`;
+
   if (compact) {
     return (
       <span
@@ -68,7 +73,7 @@ export default function CountdownTimer({
           className
         )}
       >
-        {pad(h)}:{pad(m)}:{pad(s)}
+        {label ? `${label} ${time}` : time}
       </span>
     );
   }
@@ -95,7 +100,7 @@ export default function CountdownTimer({
           isUrgent ? "text-[var(--danger)]" : "text-[var(--warning)]"
         )}
       >
-        {pad(h)}:{pad(m)}:{pad(s)} 남음
+        {label ? `${label} ${time}` : `${time} 남음`}
       </span>
     </div>
   );
