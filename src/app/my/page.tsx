@@ -442,74 +442,109 @@ export default function MyPage() {
               </button>
             </div>
 
-            <div className="p-5 flex flex-col gap-5">
-              {/* 프로필 미리보기 */}
-              <div className="flex items-center gap-3">
-                <div className="relative w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 bg-gray-100">
-                  {verifyTarget.photos?.[0] ? (
-                    <Image src={verifyTarget.photos[0]} alt={verifyTarget.name} fill className="object-cover" sizes="80px" />
-                  ) : (
-                    <div className="w-full h-full bg-gray-200" />
-                  )}
+            <div className="flex flex-col">
+              {/* 사진 — 첫번째 풀와이드 */}
+              {verifyTarget.photos?.[0] && (
+                <div className="relative w-full aspect-[4/5] bg-gray-100">
+                  <Image src={verifyTarget.photos[0]} alt={verifyTarget.name} fill className="object-cover" sizes="100vw" priority />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-base font-bold text-[var(--text)]">{verifyTarget.name}</p>
-                  <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                    {verifyTarget.gender === 'male' ? '남' : '여'} · {new Date().getFullYear() - verifyTarget.birth_year + 1}세
-                    {verifyTarget.height ? ` · ${verifyTarget.height}cm` : ''}
-                  </p>
-                  <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate">
-                    {verifyTarget.residence_city
-                      ? `${verifyTarget.residence_city}${verifyTarget.residence_district ? ` ${verifyTarget.residence_district}` : ''}`
-                      : '거주지 미입력'}
-                  </p>
-                </div>
-              </div>
-
-              {/* 추가 사진 */}
+              )}
+              {/* 추가 사진 그리드 */}
               {verifyTarget.photos && verifyTarget.photos.length > 1 && (
-                <div className="grid grid-cols-3 gap-2">
-                  {verifyTarget.photos.slice(1, 4).map((photo, i) => (
-                    <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-gray-100">
-                      <Image src={photo} alt="" fill sizes="120px" className="object-cover" />
+                <div className="grid grid-cols-2 gap-1 px-1 pt-1">
+                  {verifyTarget.photos.slice(1).map((photo, i) => (
+                    <div key={i} className="relative aspect-square bg-gray-100 overflow-hidden rounded-md">
+                      <Image src={photo} alt="" fill sizes="50vw" className="object-cover" />
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* 기본 정보 */}
-              <div className="bg-[var(--bg)] rounded-2xl divide-y divide-[var(--border)]">
-                {[
-                  { label: '학력', value: verifyTarget.education && verifyTarget.school ? `${verifyTarget.education} · ${verifyTarget.school}` : (verifyTarget.education || verifyTarget.school) },
-                  { label: '직장', value: verifyTarget.company },
-                  { label: '직업', value: verifyTarget.job_title },
-                  { label: 'MBTI', value: verifyTarget.mbti },
-                ].filter((r) => r.value).map((r) => (
-                  <div key={r.label} className="flex gap-4 px-4 py-2.5">
-                    <span className="text-xs text-[var(--text-muted)] w-12 flex-shrink-0 pt-0.5">{r.label}</span>
-                    <span className="text-sm text-[var(--text)] break-words">{r.value}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* 자기소개 */}
-              {verifyTarget.bio && (
+              <div className="p-5 flex flex-col gap-5">
+                {/* 이름 + 기본 인적 사항 */}
                 <div>
-                  <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">자기소개</p>
-                  <div className="bg-[var(--bg)] rounded-2xl p-3">
-                    <p className="text-sm text-[var(--text)] leading-relaxed whitespace-pre-wrap">{verifyTarget.bio}</p>
-                  </div>
+                  <p className="text-xl font-bold text-[var(--text)]">{verifyTarget.name}</p>
+                  <p className="text-sm text-[var(--text-muted)] mt-1">
+                    {verifyTarget.gender === 'male' ? '남' : '여'} · {new Date().getFullYear() - verifyTarget.birth_year + 1}세
+                    {verifyTarget.height ? ` · ${verifyTarget.height}cm` : ''}
+                  </p>
+                  <p className="text-sm text-[var(--text-muted)] mt-0.5 truncate">
+                    {verifyTarget.residence_city
+                      ? `${verifyTarget.residence_city}${verifyTarget.residence_district ? ` ${verifyTarget.residence_district}` : ''}`
+                      : '거주지 미입력'}
+                  </p>
                 </div>
-              )}
 
-              <Link
-                href={`/profiles/${verifyTarget.id}`}
-                className="block text-center text-xs font-semibold text-[var(--primary)] underline underline-offset-2"
-              >
-                전체 프로필 보기 →
-              </Link>
+                {/* 기본 정보 */}
+                <div className="bg-[var(--bg)] rounded-2xl divide-y divide-[var(--border)]">
+                  {[
+                    { label: '학력', value: verifyTarget.education && verifyTarget.school ? `${verifyTarget.education} · ${verifyTarget.school}` : (verifyTarget.education || verifyTarget.school) },
+                    { label: '직장', value: verifyTarget.company },
+                    { label: '직업', value: verifyTarget.job_title },
+                    { label: 'MBTI', value: verifyTarget.mbti },
+                  ].filter((r) => r.value).map((r) => (
+                    <div key={r.label} className="flex gap-4 px-4 py-2.5">
+                      <span className="text-xs text-[var(--text-muted)] w-12 flex-shrink-0 pt-0.5">{r.label}</span>
+                      <span className="text-sm text-[var(--text)] break-words">{r.value}</span>
+                    </div>
+                  ))}
+                </div>
 
-              {/* 소개자의 한마디 */}
+                {/* 라이프스타일 */}
+                {(verifyTarget.smoking || verifyTarget.drinking || verifyTarget.pet || (verifyTarget.hobbies && verifyTarget.hobbies.length > 0)) && (
+                  <div>
+                    <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">라이프스타일</p>
+                    <div className="bg-[var(--bg)] rounded-2xl divide-y divide-[var(--border)]">
+                      {[
+                        { label: '흡연', value: verifyTarget.smoking },
+                        { label: '음주', value: verifyTarget.drinking },
+                        { label: '반려동물', value: verifyTarget.pet },
+                        { label: '취미', value: verifyTarget.hobbies?.length ? verifyTarget.hobbies.join(', ') : null },
+                      ].filter((r) => r.value).map((r) => (
+                        <div key={r.label} className="flex gap-4 px-4 py-2.5">
+                          <span className="text-xs text-[var(--text-muted)] w-14 flex-shrink-0 pt-0.5">{r.label}</span>
+                          <span className="text-sm text-[var(--text)] break-words">{r.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 자기소개 */}
+                {verifyTarget.bio && (
+                  <div>
+                    <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">자기소개</p>
+                    <div className="bg-[var(--bg)] rounded-2xl p-3">
+                      <p className="text-sm text-[var(--text)] leading-relaxed whitespace-pre-wrap">{verifyTarget.bio}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 이상형 */}
+                {(verifyTarget.preferred_free_text || verifyTarget.preferred_age_min || verifyTarget.preferred_height_min || (verifyTarget.preferred_residence && verifyTarget.preferred_residence.length > 0)) && (
+                  <div>
+                    <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">이상형</p>
+                    {verifyTarget.preferred_free_text && (
+                      <div className="bg-[var(--bg)] rounded-2xl p-3 mb-2">
+                        <p className="text-sm text-[var(--text)] leading-relaxed whitespace-pre-wrap">{verifyTarget.preferred_free_text}</p>
+                      </div>
+                    )}
+                    <div className="bg-[var(--bg)] rounded-2xl divide-y divide-[var(--border)]">
+                      {[
+                        { label: '연령', value: verifyTarget.preferred_age_min && verifyTarget.preferred_age_max ? `${verifyTarget.preferred_age_min}~${verifyTarget.preferred_age_max}년생` : null },
+                        { label: '최소 키', value: verifyTarget.preferred_height_min ? `${verifyTarget.preferred_height_min}cm` : null },
+                        { label: '거주지', value: verifyTarget.preferred_residence?.length ? verifyTarget.preferred_residence.join(', ') : null },
+                      ].filter((r) => r.value).map((r) => (
+                        <div key={r.label} className="flex gap-4 px-4 py-2.5">
+                          <span className="text-xs text-[var(--text-muted)] w-14 flex-shrink-0 pt-0.5">{r.label}</span>
+                          <span className="text-sm text-[var(--text)] break-words">{r.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 소개자의 한마디 */}
               <div>
                 <label className="block text-sm font-semibold text-[var(--text)] mb-1.5">
                   소개자의 한마디 <span className="text-xs font-normal text-[var(--text-muted)]">(선택)</span>
@@ -524,6 +559,7 @@ export default function MyPage() {
                 <p className="text-[11px] text-[var(--text-muted)] mt-1 text-right">
                   {referrerComment.length}/{COMMENT_MAX}
                 </p>
+              </div>
               </div>
             </div>
 
