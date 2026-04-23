@@ -361,8 +361,17 @@ export default function AdminUsersPage() {
                         : null
                     }
                   />
-                  <DlRow label="사용한 초대코드" value={selected.invite?.code ?? null} />
+                  <DlRow label="사용한 초대코드 (invite_codes)" value={selected.invite?.code ?? null} />
+                  <DlRow label="invite_code_used (denormalized)" value={selected.invite_code_used} />
+                  <DlRow label="referrer_id" value={selected.referrer_id} />
                 </dl>
+                <InviteEditForm
+                  user={selected}
+                  onUpdated={(updated) => {
+                    setUsers((prev) => prev.map((u) => (u.id === updated.id ? { ...u, ...updated } : u)))
+                    setSelected((prev) => (prev ? { ...prev, ...updated } : prev))
+                  }}
+                />
               </section>
 
               {/* 가입 정보 */}
@@ -486,6 +495,96 @@ function DlRow({ label, value }: { label: string; value: string | null | undefin
     <div className="flex px-3 py-2">
       <dt className="text-xs text-gray-500 w-24 flex-shrink-0">{label}</dt>
       <dd className="text-sm text-gray-900 flex-1 break-words">{value || <span className="text-gray-300">미입력</span>}</dd>
+    </div>
+  )
+}
+
+// 레거시 유저 보정용. invite_code_used / referrer_id 누락된 케이스에서
+// 어드민이 수동으로 채워 넣을 수 있게 한다 (이미 발생한 손실 데이터 복구).
+function InviteEditForm({
+  user,
+  onUpdated,
+}: {
+  user: UserWithInvite
+  onUpdated: (patch: Partial<UserWithInvite> & { id: string }) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [code, setCode] = useState(user.invite_code_used ?? '')
+  const [referrerId, setReferrerId] = useState(user.referrer_id ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  async function save() {
+    setSaving(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/invite`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          inviteCodeUsed: code.trim() === '' ? null : code.trim().toUpperCase(),
+          referrerId: referrerId.trim() === '' ? null : referrerId.trim(),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error ?? 'failed')
+      onUpdated(data)
+      setOpen(false)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : '저장 실패')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="mt-2 text-[11px] px-2 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
+      >
+        초대 정보 수동 보정
+      </button>
+    )
+  }
+
+  return (
+    <div className="mt-3 space-y-2 p-3 border border-gray-200 rounded-lg bg-gray-50">
+      <div>
+        <label className="block text-[11px] text-gray-500 mb-1">invite_code_used (8자)</label>
+        <input
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="ABCD1234"
+          maxLength={8}
+          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-900"
+        />
+      </div>
+      <div>
+        <label className="block text-[11px] text-gray-500 mb-1">referrer_id (uuid)</label>
+        <input
+          value={referrerId}
+          onChange={(e) => setReferrerId(e.target.value)}
+          placeholder="uuid"
+          className="w-full px-2 py-1 text-sm font-mono border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-gray-900"
+        />
+      </div>
+      {error && <p className="text-[11px] text-red-600">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          onClick={() => { setOpen(false); setError(''); setCode(user.invite_code_used ?? ''); setReferrerId(user.referrer_id ?? '') }}
+          className="flex-1 px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-white"
+        >
+          취소
+        </button>
+        <button
+          onClick={save}
+          disabled={saving}
+          className="flex-1 px-3 py-1.5 text-xs bg-gray-900 text-white rounded hover:bg-gray-700 disabled:opacity-50"
+        >
+          {saving ? '저장 중...' : '저장'}
+        </button>
+      </div>
     </div>
   )
 }

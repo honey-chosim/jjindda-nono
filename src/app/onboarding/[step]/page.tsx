@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/store/onboardingStore";
 import { cn } from "@/lib/utils";
 import { getSupabaseClient } from "@/lib/supabase";
-import { createProfile } from "@/services/profileService";
-import { consumeInviteCode } from "@/services/inviteService";
+import { finalizeOnboarding } from "@/services/profileService";
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -772,40 +771,45 @@ function Step9() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("로그인이 필요합니다");
 
-      await createProfile({
-        id: user.id,
-        name: store.name,
-        real_name: store.realName,
-        phone: store.phone.replace(/[-\s]/g, ""),
-        gender: store.gender,
-        birth_year: store.birthYear,
-        birth_month: store.birthMonth,
-        birth_day: store.birthDay,
-        height: store.height,
-        education: store.education,
-        school: store.school,
-        company: store.company,
-        job_title: store.jobTitle,
-        residence_city: store.residenceCity,
-        residence_district: store.residenceDistrict,
-        smoking: store.smoking,
-        drinking: store.drinking,
-        mbti: store.mbti,
-        hobbies: store.hobbies,
-        pet: store.pet,
-        bio: store.bio,
-        photos: store.photos,
-        preferred_age_min: store.preferredAgeMin,
-        preferred_age_max: store.preferredAgeMax,
-        preferred_height_min: store.preferredHeightMin,
-        preferred_residence: store.preferredResidence,
-        preferred_free_text: store.preferredFreeText,
-        onboarding_completed: true,
-      });
-
-      if (store.inviteCode) {
-        await consumeInviteCode(store.inviteCode, user.id);
+      if (!store.inviteCode) {
+        throw new Error("초대 코드가 없습니다. 처음부터 다시 가입해주세요.");
       }
+
+      // 단일 서버 RPC: 프로필 INSERT + invite_codes UPDATE 동시 트랜잭션.
+      // 이전 createProfile() + consumeInviteCode() 2단계는 두 번째 단계 누락 시
+      // invite_code 추적이 사라지는 버그가 있었음 (실제 데이터 손실 2건).
+      await finalizeOnboarding(
+        {
+          name: store.name,
+          real_name: store.realName,
+          phone: store.phone.replace(/[-\s]/g, ""),
+          gender: store.gender,
+          birth_year: store.birthYear,
+          birth_month: store.birthMonth,
+          birth_day: store.birthDay,
+          height: store.height,
+          education: store.education,
+          school: store.school,
+          company: store.company,
+          job_title: store.jobTitle,
+          residence_city: store.residenceCity,
+          residence_district: store.residenceDistrict,
+          smoking: store.smoking,
+          drinking: store.drinking,
+          mbti: store.mbti,
+          hobbies: store.hobbies,
+          pet: store.pet,
+          bio: store.bio,
+          photos: store.photos,
+          preferred_age_min: store.preferredAgeMin,
+          preferred_age_max: store.preferredAgeMax,
+          preferred_height_min: store.preferredHeightMin,
+          preferred_residence: store.preferredResidence,
+          preferred_free_text: store.preferredFreeText,
+          onboarding_completed: true,
+        },
+        store.inviteCode
+      );
 
       router.push("/profiles");
     } catch (err: unknown) {

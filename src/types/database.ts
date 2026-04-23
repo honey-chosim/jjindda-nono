@@ -98,6 +98,8 @@ export interface Database {
           bank_account: string | null
           account_holder: string | null
           referrer_comment: string | null
+          invite_code_used: string | null
+          referrer_id: string | null
           created_at: string
           updated_at: string
         }
@@ -140,6 +142,8 @@ export interface Database {
           bank_account?: string | null
           account_holder?: string | null
           referrer_comment?: string | null
+          invite_code_used?: string | null
+          referrer_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -182,6 +186,8 @@ export interface Database {
           bank_account?: string | null
           account_holder?: string | null
           referrer_comment?: string | null
+          invite_code_used?: string | null
+          referrer_id?: string | null
           created_at?: string
           updated_at?: string
         }

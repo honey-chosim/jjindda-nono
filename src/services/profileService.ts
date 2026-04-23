@@ -67,6 +67,25 @@ export async function createProfile(profile: Record<string, unknown>): Promise<P
   return toProfileView(data as Record<string, unknown>)
 }
 
+// Atomic finalize: 프로필 생성 + invite_codes.used_by 업데이트를 단일 트랜잭션으로.
+// 시행착오: createProfile() + consumeInviteCode() 두 번 호출하면 두 번째가
+// 실패할 때 invite_code 추적이 누락됨 (실제로 2명 데이터 손실). 서버 RPC 경유.
+export async function finalizeOnboarding(
+  profile: Record<string, unknown>,
+  inviteCode: string
+): Promise<void> {
+  const res = await fetch('/api/onboarding/finalize', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+    body: JSON.stringify({ profile, inviteCode }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({})) as { error?: string }
+    throw new Error(data.error ?? '프로필 저장에 실패했습니다')
+  }
+}
+
 export async function updateProfile(userId: string, update: Record<string, unknown>): Promise<ProfileView> {
   const supabase = getRawSupabaseClient()
   const { data, error } = await supabase
