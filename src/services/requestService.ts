@@ -46,18 +46,17 @@ export async function acceptRequestV2(requestId: string): Promise<string> {
   return data as string
 }
 
+/**
+ * @deprecated Reads from legacy `daily_request_limits` table that the V2 RPC never
+ * populates. Use `getMyQuota(userId).remainingSend === 0` from `@/services/quotaService`
+ * instead — that's the policy-compliant "is the user out of today's send quota" check.
+ *
+ * Kept temporarily as a thin shim over getMyQuota for any straggler imports.
+ */
 export async function hasUsedRequestToday(userId: string): Promise<boolean> {
-  const supabase = getRawSupabaseClient()
-  const today = new Date().toISOString().split('T')[0]
-  const { data, error } = await supabase
-    .from('daily_request_limits')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('request_date', today)
-    .maybeSingle()
-
-  if (error) throw error
-  return data !== null
+  const { getMyQuota } = await import('./quotaService')
+  const q = await getMyQuota(userId)
+  return q.remainingSend === 0
 }
 
 /**
@@ -107,40 +106,33 @@ export async function getReceivedRequests(userId: string): Promise<RequestWithRe
   return ((data ?? []) as RequestWithRequester[]).filter((r) => r.requester != null)
 }
 
-export async function acceptRequest(requestId: string, targetId: string): Promise<void> {
-  const supabase = getRawSupabaseClient()
+// REMOVED: legacy `acceptRequest()` direct-update path.
+// It set status='accepted' and inserted a match WITHOUT payer_id / payment_expires_at /
+// payment_status — `payer_id` is NOT NULL post-Phase-1, so every call would 23502.
+// All call sites now use `acceptRequestV2()` (RPC) or POST /api/requests/accept.
 
-  const { data: request, error: reqError } = await supabase
-    .from('dating_requests')
-    .update({ status: 'accepted' })
-    .eq('id', requestId)
-    .eq('target_id', targetId)
-    .select()
-    .single()
-
-  if (reqError) throw reqError
-
-  const req = request as DatingRequest
-  const { error: matchError } = await supabase
-    .from('matches')
-    .upsert({
-      request_id: requestId,
-      user1_id: req.requester_id,
-      user2_id: req.target_id,
-    }, { onConflict: 'request_id', ignoreDuplicates: true })
-
-  if (matchError) throw matchError
-}
-
-export async function rejectRequest(requestId: string, targetId: string): Promise<void> {
-  const supabase = getRawSupabaseClient()
-  const { error } = await supabase
-    .from('dating_requests')
-    .update({ status: 'rejected' })
-    .eq('id', requestId)
-    .eq('target_id', targetId)
-
-  if (error) throw error
+/**
+ * Reject a received dating request.
+ *
+ * Per CLAUDE.md SMS policy (template #13): rejection SMS to the requester is FORBIDDEN
+ * — in-app notification only. The API route enforces target_id == auth.uid() so a
+ * non-target cannot reject someone else's request.
+ *
+ * @param requestId — the dating_request to reject
+ * @param _targetId — kept for backwards-compatible signature; the server derives
+ *                    target_id from the authenticated session and ignores this value.
+ */
+export async function rejectRequest(requestId: string, _targetId?: string): Promise<void> {
+  void _targetId
+  const res = await fetch('/api/requests/reject', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requestId }),
+  })
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({ error: 'reject failed' }))
+    throw new Error(error ?? 'reject failed')
+  }
 }
 
 export async function getAcceptedRequestId(requesterId: string, targetId: string): Promise<string | null> {

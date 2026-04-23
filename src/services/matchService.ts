@@ -41,15 +41,14 @@ export async function getMatchByRequestId(requestId: string): Promise<MatchWithP
   return data as MatchWithProfiles
 }
 
-export async function markPaymentComplete(matchId: string, userId: string): Promise<void> {
-  const supabase = getRawSupabaseClient()
-  const { error } = await supabase
-    .from('matches')
-    .update({ payment_status: 'paid' })
-    .eq('id', matchId)
-    .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
-
-  if (error) throw error
+/**
+ * 유저 "입금 완료 알리기" — 4-state 정책 준수.
+ * pending → pending_confirmation 으로 전환 (admin이 paid로 최종 확정).
+ * 직접 update 금지 — confirm_payment_transfer RPC 경유.
+ */
+export async function markPaymentComplete(matchId: string, _userId?: string): Promise<void> {
+  void _userId
+  await confirmPaymentTransfer(matchId)
 }
 
 /**

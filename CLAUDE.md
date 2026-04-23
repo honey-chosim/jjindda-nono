@@ -132,6 +132,72 @@ async function maybeNotifyFullyVerified(userId) {
 ### 10. SOLAPI_SENDER_NUMBER 자기 자신 발송 OK
 발신자 `01051751360`. 같은 번호로 테스트해도 SMS 수신 됨. "왜 안 와?" 할 때 발신/수신 번호 중복보단 다른 원인 먼저 의심.
 
+### 11. PostgREST one-to-one nested join은 객체로 옴 (배열 아님!)
+`matches.request_id`가 unique FK인 경우 `.select('id, matches(payment_status)')` 결과의 `matches`는 **단일 객체** (`{...} | null`), 배열 아님. `r.matches?.[0]`으로 접근하면 항상 undefined → 결제 완료된 매치까지 활성 슬롯으로 카운트 → "슬롯 만석" 오표시.
+
+```ts
+// ❌ 금지
+const match = r.matches?.[0]
+
+// ✅ 안전 (방어적)
+const match = Array.isArray(r.matches) ? r.matches[0] : r.matches
+```
+
+### 12. accepted-without-match orphan은 영원히 슬롯 점유
+status='accepted'인데 matches row가 없는 dirty data가 존재할 수 있음 (legacy/마이그레이션 잔재). SQL `send_dating_request` RPC와 quotaService 모두 `m.payment_status is null`이면 active로 카운트 → 영원히 활성 슬롯 점유. **TS 측에서는 status='accepted' && !match이면 active=false로 처리** (data corruption 격리). SQL도 추후 같은 방식으로 보강 필요.
+
+### 13. 클라이언트 결제 상태 직접 변경 금지
+`matches.payment_status`를 브라우저 anon으로 `.update({ payment_status: 'paid' })` → **어드민 검증 우회, 송금 안하고 paid 가능**. 또한 `paid_at`/`payment_confirmed_at`/`kakao_room_url` 비어있는 채로 paid 됨.
+
+```ts
+// ❌ 금지
+await supabase.from('matches').update({ payment_status: 'paid' }).eq('id', id)
+
+// ✅ 올바른 — RPC 경유 (pending → pending_confirmation, admin이 paid로)
+await supabase.rpc('confirm_payment_transfer', { p_match_id: id })
+```
+
+상태머신: `pending → pending_confirmation (유저 "이체완료") → paid (어드민 확인) / expired`.
+
+### 14. 결제 UI는 `payer_id` 체크 후 표시
+match 상세 페이지에서 양쪽 유저(`user1_id`, `user2_id`) 모두에게 송금 안내 + "입금 완료" 버튼 노출하면 안됨. **반드시 `match.payer_id === currentUserId` 일 때만** 결제 UI. 비결제자에겐 "상대방의 결제를 기다리고 있어요" 카운트다운만.
+
+정책상 payer:
+- 일반 플로우 (A 요청 → B 수락): A=requester=payer
+- 바로 수락하기 플로우 (B가 A 프로필 보고 직접 수락): B=target=payer
+
+### 15. 카운트다운은 `payment_expires_at` 컬럼 사용 (created_at + 24h 하드코딩 금지)
+`matches.payment_expires_at`는 instant_accept_match RPC에서 별도로 세팅됨. `created_at + 24h` 하드코딩하면 타이머가 틀림. 항상 컬럼값 우선 (`getPaymentDeadline(match)` 헬퍼).
+
+### 16. "바로 수락하기"는 `instant_accept_match` RPC 사용 (accept_dating_request 아님)
+프로필 상세 페이지의 "바로 수락하기" 버튼은 target이 payer가 되는 별도 플로우. `accept_dating_request` (requester=payer) 호출하면 정책 위반.
+
+| 버튼 | RPC | payer |
+|------|-----|-------|
+| 받은 요청 수락 | `accept_dating_request` | requester (A) |
+| 프로필에서 바로 수락하기 | `instant_accept_match` | target (B) |
+
+### 17. 클라이언트 quota 게이트는 `getMyQuota` 사용 (legacy `daily_request_limits` 금지)
+V2 RPC는 `daily_request_limits` 테이블에 안 씀 (`request_quotas` 테이블 + 실시간 계산으로 대체). 옛날 헬퍼 `hasUsedRequestToday`가 legacy 테이블 조회하면 항상 false → "신청하기" 버튼 노출되지만 서버에서 P0002 거부 → UX 깨짐.
+
+```ts
+// ❌ 금지
+const used = await hasUsedRequestToday(userId)  // legacy 테이블 — 항상 false
+
+// ✅ 올바른
+const q = await getMyQuota(userId)
+const cannotSend = q.remainingSend === 0
+```
+
+### 18. 거절은 in-app only — SMS 발송 금지
+정책 #13: 요청 거절/만료는 **인앱 알림만**, SMS 발송 금지. `/api/requests/reject`에서 `notifyUser` 호출하면 안됨.
+
+### 19. 모든 mutation은 server API route 경유 (브라우저 raw update 금지)
+`accept`/`reject`/`payment` 등 RLS 경계의 mutation은 무조건 `/api/...` 경유 → `createServerSupabaseClient` 인증 → admin client 또는 RPC 호출. 브라우저에서 직접 `.update()` 하면:
+- 세션 동기화 이슈로 RLS 우회 가능 (양쪽 모두 위험)
+- SMS/dedup/감사로그 누락
+- payer_id 같은 필수 컬럼 누락 가능
+
 ---
 
 ## 📁 주요 서버 API 라우트
@@ -141,7 +207,9 @@ async function maybeNotifyFullyVerified(userId) {
 | `/api/me` | 본인 프로필 | user session |
 | `/api/profiles` | 탐색 리스트 (성별/검증 필터) | user session |
 | `/api/requests/send` | 요청 전송 + SMS #1 | user session |
-| `/api/requests/accept` | 수락 + SMS #3 | user session |
+| `/api/requests/accept` | 수락 + SMS #3 (A=payer) | user session |
+| `/api/requests/instant-accept` | 바로 수락하기 + SMS #3 (B=payer) | user session |
+| `/api/requests/reject` | 거절 (SMS 없음 — in-app only) | user session |
 | `/api/referral/verify` | 친구 검증 (RPC) + SMS trigger | user session |
 | `/api/referral/payouts` | 레퍼럴 잔액/신청 | user session |
 | `/api/admin/*` | 어드민 전용 | admin_session cookie |

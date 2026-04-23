@@ -4,13 +4,9 @@ import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import CountdownTimer from "@/components/ui/CountdownTimer";
-import { getMatchByRequestId, markPaymentComplete } from "@/services/matchService";
+import { getMatchByRequestId, markPaymentComplete, getPaymentDeadline } from "@/services/matchService";
 import { getSupabaseClient } from "@/lib/supabase";
 import type { MatchWithProfiles } from "@/types/database";
-
-function paymentExpiresAt(matchCreatedAt: string): string {
-  return new Date(new Date(matchCreatedAt).getTime() + 24 * 60 * 60 * 1000).toISOString();
-}
 
 export default function MatchPage({
   params,
@@ -68,6 +64,9 @@ export default function MatchPage({
     ? (match.user1_id === currentUserId ? (match.user2?.name ?? "상대방") : (match.user1?.name ?? "상대방"))
     : "상대방";
 
+  const isPayer = !!(match && currentUserId && match.payer_id === currentUserId);
+  const deadlineIso = match ? getPaymentDeadline(match).toISOString() : null;
+
   if (isFetching) {
     return (
       <div className="min-h-dvh flex items-center justify-center">
@@ -108,77 +107,106 @@ export default function MatchPage({
           </p>
         </div>
 
-        {!paymentExpired && (
+        {!paymentExpired && match && deadlineIso && (
           <>
-            {!paid && match && (
+            {!paid && (
               <div className="flex items-center justify-center gap-2 bg-[#FEF3C7] rounded-2xl px-4 py-3">
                 <CountdownTimer
-                  expiresAt={paymentExpiresAt(match.created_at)}
+                  expiresAt={deadlineIso}
                   onExpired={() => setPaymentExpired(true)}
                 />
               </div>
             )}
 
-            <div className="bg-[var(--surface)] rounded-3xl border border-[var(--border)] shadow-sm overflow-hidden">
-              <div className="px-5 pt-5 pb-4 border-b border-[var(--border)]">
-                <h2 className="text-base font-bold text-[var(--text)]">소개팅 비용 안내</h2>
-                <p className="mt-1 text-sm text-[var(--text-muted)]">아래 계좌로 입금해 주세요</p>
-              </div>
-              <div className="px-5 py-4 flex items-center justify-between border-b border-[var(--border)]">
-                <span className="text-sm text-[var(--text-muted)]">결제 금액</span>
-                <span className="text-xl font-bold text-[var(--text)]">70,000원</span>
-              </div>
-              <div className="px-5 py-4 bg-gray-50 divide-y divide-[var(--border)]">
-                {[
-                  { label: "은행", value: "기업은행" },
-                  { label: "계좌번호", value: "979-053466-01-019" },
-                  { label: "예금주", value: "심규헌" },
-                ].map((item) => (
-                  <div key={item.label} className="flex justify-between py-2.5">
-                    <span className="text-xs text-[var(--text-muted)]">{item.label}</span>
-                    <span className="text-sm font-semibold text-[var(--text)] font-mono tracking-wide">{item.value}</span>
+            {isPayer ? (
+              <>
+                <div className="bg-[var(--surface)] rounded-3xl border border-[var(--border)] shadow-sm overflow-hidden">
+                  <div className="px-5 pt-5 pb-4 border-b border-[var(--border)]">
+                    <h2 className="text-base font-bold text-[var(--text)]">소개팅 비용 안내</h2>
+                    <p className="mt-1 text-sm text-[var(--text-muted)]">아래 계좌로 입금해 주세요</p>
                   </div>
-                ))}
-              </div>
-              <div className="px-5 py-3">
-                <button
-                  onClick={copyAccount}
-                  className="w-full h-11 rounded-xl bg-[#F3F4F6] text-sm font-semibold text-[#111827] active:scale-[0.98] transition-all"
-                >
-                  {copied ? "복사됐어요!" : "계좌번호 복사하기"}
-                </button>
-              </div>
-              <div className="px-5 pb-4 bg-[#F3F4F6]">
-                <p className="text-xs text-[#374151] leading-relaxed text-center font-medium">
-                  입금 후 1시간 내 카카오톡 단톡방을 개설해드립니다
-                </p>
-              </div>
-            </div>
+                  <div className="px-5 py-4 flex items-center justify-between border-b border-[var(--border)]">
+                    <span className="text-sm text-[var(--text-muted)]">결제 금액</span>
+                    <span className="text-xl font-bold text-[var(--text)]">70,000원</span>
+                  </div>
+                  <div className="px-5 py-4 bg-gray-50 divide-y divide-[var(--border)]">
+                    {[
+                      { label: "은행", value: "기업은행" },
+                      { label: "계좌번호", value: "979-053466-01-019" },
+                      { label: "예금주", value: "심규헌" },
+                    ].map((item) => (
+                      <div key={item.label} className="flex justify-between py-2.5">
+                        <span className="text-xs text-[var(--text-muted)]">{item.label}</span>
+                        <span className="text-sm font-semibold text-[var(--text)] font-mono tracking-wide">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="px-5 py-3">
+                    <button
+                      onClick={copyAccount}
+                      className="w-full h-11 rounded-xl bg-[#F3F4F6] text-sm font-semibold text-[#111827] active:scale-[0.98] transition-all"
+                    >
+                      {copied ? "복사됐어요!" : "계좌번호 복사하기"}
+                    </button>
+                  </div>
+                  <div className="px-5 pb-4 bg-[#F3F4F6]">
+                    <p className="text-xs text-[#374151] leading-relaxed text-center font-medium">
+                      입금 후 1시간 내 카카오톡 단톡방을 개설해드립니다
+                    </p>
+                  </div>
+                </div>
 
-            <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4">
-              <div className="flex gap-3">
-                <span className="text-lg flex-shrink-0">💬</span>
-                <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-                  운영팀이 양측의 카카오톡을 통해 단톡방을 직접 만들어드립니다.
-                  연락처는 절대 공개되지 않습니다.
-                </p>
-              </div>
-            </div>
+                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4">
+                  <div className="flex gap-3">
+                    <span className="text-lg flex-shrink-0">💬</span>
+                    <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+                      운영팀이 양측의 카카오톡을 통해 단톡방을 직접 만들어드립니다.
+                      연락처는 절대 공개되지 않습니다.
+                    </p>
+                  </div>
+                </div>
 
-            {paid ? (
-              <div className="flex items-center justify-center gap-2 w-full h-12 rounded-2xl bg-green-50 text-green-700 font-semibold text-sm border border-green-200">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                확인했습니다. 곧 연락드릴게요
-              </div>
+                {paid ? (
+                  <div className="flex items-center justify-center gap-2 w-full h-12 rounded-2xl bg-green-50 text-green-700 font-semibold text-sm border border-green-200">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    확인했습니다. 곧 연락드릴게요
+                  </div>
+                ) : (
+                  <button
+                    onClick={handlePaid}
+                    className="w-full h-12 rounded-2xl bg-[var(--primary)] text-white text-sm font-semibold hover:bg-[#1F2937] active:scale-[0.98] transition-all shadow-sm"
+                  >
+                    입금 완료 알리기
+                  </button>
+                )}
+              </>
             ) : (
-              <button
-                onClick={handlePaid}
-                className="w-full h-12 rounded-2xl bg-[var(--primary)] text-white text-sm font-semibold hover:bg-[#1F2937] active:scale-[0.98] transition-all shadow-sm"
-              >
-                입금 완료 알리기
-              </button>
+              <>
+                <div className="bg-[var(--surface)] rounded-3xl border border-[var(--border)] shadow-sm overflow-hidden">
+                  <div className="px-5 py-6 text-center">
+                    <div className="text-3xl mb-2">⏳</div>
+                    <h2 className="text-base font-bold text-[var(--text)]">
+                      상대방의 결제를 기다리고 있어요
+                    </h2>
+                    <p className="mt-2 text-sm text-[var(--text-muted)] leading-relaxed">
+                      <span className="text-[var(--text)] font-semibold">{matchName}</span>님이
+                      <br />소개팅 비용을 입금하면 단톡방이 개설됩니다
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-4">
+                  <div className="flex gap-3">
+                    <span className="text-lg flex-shrink-0">💬</span>
+                    <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+                      입금이 확인되면 운영팀이 양측의 카카오톡을 통해 단톡방을 직접 만들어드립니다.
+                      연락처는 절대 공개되지 않습니다.
+                    </p>
+                  </div>
+                </div>
+              </>
             )}
           </>
         )}

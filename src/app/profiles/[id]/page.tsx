@@ -62,15 +62,16 @@ export default function ProfileDetailPage({
     if (!currentUserId || !pendingFromThem) return;
     setShowAcceptModal(false);
     try {
-      const res = await fetch('/api/requests/accept', {
+      // "바로 수락하기" — 내가(target=B) 결제 주체가 됨. instant_accept_match RPC 경유.
+      const res = await fetch('/api/requests/instant-accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestId: pendingFromThem.id }),
       });
-      if (!res.ok) throw new Error('accept failed');
+      if (!res.ok) throw new Error('instant-accept failed');
       router.push(`/match/${pendingFromThem.id}`);
     } catch (err) {
-      console.error("Failed to accept request:", err);
+      console.error("Failed to instant-accept request:", err);
     }
   }
 

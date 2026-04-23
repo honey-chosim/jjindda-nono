@@ -53,12 +53,12 @@ export async function getMyQuota(userId: string): Promise<QuotaStatus> {
     // active sent: pending OR (accepted AND payment not paid/expired)
     supabase
       .from('dating_requests')
-      .select('id, matches(payment_status)', { count: 'exact', head: false })
+      .select('id, status, matches(payment_status)')
       .eq('requester_id', userId)
       .in('status', ['pending', 'accepted']),
     supabase
       .from('dating_requests')
-      .select('id, matches(payment_status)', { count: 'exact', head: false })
+      .select('id, status, matches(payment_status)')
       .eq('target_id', userId)
       .in('status', ['pending', 'accepted']),
   ])
@@ -66,13 +66,17 @@ export async function getMyQuota(userId: string): Promise<QuotaStatus> {
   const sentToday = sentTodayRes.count ?? 0
   const receivedToday = receivedTodayRes.count ?? 0
 
-  // Count active: pending OR (accepted AND payment_status in pending|pending_confirmation)
-  type Row = { matches: { payment_status: string }[] | null }
+  // PostgREST returns one-to-one nested rows as a single object (not array) when the FK is unique.
+  // matches.request_id is unique → `r.matches` is `{...} | null`, not `[{...}]`.
+  type MatchRow = { payment_status: string }
+  type Row = { status: 'pending' | 'accepted'; matches: MatchRow | MatchRow[] | null }
   const countActive = (data: Row[] | null) =>
     (data ?? []).filter((r) => {
-      const match = r.matches?.[0]
-      // pending (no match yet) — active. accepted with paid/expired — not active.
-      if (!match) return true
+      if (r.status === 'pending') return true
+      // status === 'accepted': active only if a match exists with in-flight payment.
+      // Orphan accepted (no match) = data corruption, treat as not active.
+      const match = Array.isArray(r.matches) ? r.matches[0] : r.matches
+      if (!match) return false
       return match.payment_status === 'pending' || match.payment_status === 'pending_confirmation'
     }).length
 
