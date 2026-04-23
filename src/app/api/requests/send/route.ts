@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
 
   const requesterName = profiles?.find((p) => p.id === user.id)?.name ?? '상대방'
 
+  let smsDebug: unknown = null
   try {
     await notifyUser({
       userId: targetId,
@@ -39,7 +40,19 @@ export async function POST(req: NextRequest) {
       referenceId: requestId,
       vars: { requester_name: requesterName, request_id: requestId },
     })
-  } catch (e) { console.error('request_received SMS failed:', e) }
+    smsDebug = 'attempted'
+  } catch (e) {
+    console.error('request_received SMS failed:', e)
+    smsDebug = String(e)
+  }
 
-  return NextResponse.json({ requestId })
+  const envCheck = {
+    SOLAPI_API_KEY: !!process.env.SOLAPI_API_KEY,
+    SOLAPI_API_SECRET: !!process.env.SOLAPI_API_SECRET,
+    SOLAPI_SENDER_NUMBER: !!process.env.SOLAPI_SENDER_NUMBER,
+    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? 'unset',
+  }
+
+  return NextResponse.json({ requestId, smsDebug, envCheck })
 }
