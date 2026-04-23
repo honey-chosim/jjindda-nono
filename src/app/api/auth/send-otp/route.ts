@@ -31,13 +31,22 @@ export async function POST(req: NextRequest) {
   const code = generateOtp()
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString()
 
+  // QA backdoor: 010-9988-77xx 번호는 항상 코드 999999, 실제 SMS 발송 skip.
+  // 실제 운영자도 이 prefix는 사용하지 않기로 함 (정책으로 금지).
+  const isQaTestPhone = /^010998877\d{2}$/.test(digits)
+  const finalCode = isQaTestPhone ? '999999' : code
+
   // Upsert OTP into DB
   const { error: dbError } = await supabaseAdmin
     .from('phone_otps')
-    .upsert({ phone: digits, code, expires_at: expiresAt }, { onConflict: 'phone' })
+    .upsert({ phone: digits, code: finalCode, expires_at: expiresAt }, { onConflict: 'phone' })
 
   if (dbError) {
     return NextResponse.json({ error: '서버 오류가 발생했습니다' }, { status: 500 })
+  }
+
+  if (isQaTestPhone) {
+    return NextResponse.json({ ok: true, qa: true })
   }
 
   // Send SMS via Solapi
