@@ -21,7 +21,7 @@ const HOBBY_OPTIONS = [
   "독서","테니스","골프","헬스","요리","여행","영화","음악","게임","등산",
 ];
 
-const EDUCATION_OPTIONS = ["고졸","전문대졸","대졸","대학원졸"];
+const EDUCATION_OPTIONS = ["고졸","학사","석사","박사"];
 
 const CITIES = [
   "서울","경기","인천","부산","대구","광주","대전","울산","세종",
@@ -564,7 +564,7 @@ function Step5() {
 
 function Step7() {
   const router = useRouter();
-  const { bio, setBio } = useOnboardingStore();
+  const { bio, setBio, preferredFreeText, setPreferredFreeText } = useOnboardingStore();
   const MAX = 300;
   const MIN = 20;
 
@@ -575,12 +575,12 @@ function Step7() {
         <p className="text-sm text-[#6B7280] mt-1">나는 어떤 사람인지, 어떤 분을 만나고 싶은지 써주세요</p>
       </div>
 
-      <Field label="자기소개 및 이상형" hint={`${bio.length}/${MAX}자 · 최소 ${MIN}자 이상`}>
+      <Field label="자기소개" hint={`${bio.length}/${MAX}자 · 최소 ${MIN}자 이상`}>
         <textarea
           value={bio}
           onChange={(e) => setBio(e.target.value.slice(0, MAX))}
-          placeholder={"예) 여의도에서 일하는 30대 직장인입니다. 취미는 테니스와 독서예요. 밝고 유머 있는 분이면 좋겠어요 :)"}
-          rows={8}
+          placeholder={"예) 여의도에서 일하는 30대 직장인입니다. 취미는 테니스와 독서예요 :)"}
+          rows={6}
           className="w-full px-4 py-3 rounded-2xl bg-[#F3F4F6] text-[15px] text-[#111827] leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-[#111827] focus:bg-white transition-all border border-transparent placeholder:text-[#9CA3AF]"
         />
         {bio.length > 0 && bio.length < MIN && (
@@ -588,9 +588,22 @@ function Step7() {
         )}
       </Field>
 
+      <Field label="이상형" hint={`${preferredFreeText.length}/${MAX}자 · 최소 ${MIN}자 이상`}>
+        <textarea
+          value={preferredFreeText}
+          onChange={(e) => setPreferredFreeText(e.target.value.slice(0, MAX))}
+          placeholder={"예) 밝고 유머 있는 분이면 좋겠어요. 운동을 좋아하고 대화가 잘 통하는 분을 찾아요."}
+          rows={6}
+          className="w-full px-4 py-3 rounded-2xl bg-[#F3F4F6] text-[15px] text-[#111827] leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-[#111827] focus:bg-white transition-all border border-transparent placeholder:text-[#9CA3AF]"
+        />
+        {preferredFreeText.length > 0 && preferredFreeText.length < MIN && (
+          <p className="text-xs text-[#DC2626]">{MIN - preferredFreeText.length}자 더 입력해주세요</p>
+        )}
+      </Field>
+
       <ContinueButton
         onClick={() => router.push("/onboarding/8")}
-        disabled={bio.length < MIN}
+        disabled={bio.length < MIN || preferredFreeText.length < MIN}
       />
     </div>
   );
@@ -893,6 +906,24 @@ function Step9() {
               <p className="text-xs text-[#6B7280] mb-1">자기소개</p>
               <p className="text-sm text-[#111827] leading-relaxed line-clamp-3">
                 {store.bio || "자기소개 없음"}
+              </p>
+            </div>
+            <button
+              onClick={() => router.push("/onboarding/7")}
+              className="text-xs text-[var(--primary)] font-medium flex-shrink-0"
+            >
+              수정
+            </button>
+          </div>
+
+          <div className="h-px bg-[var(--border)]" />
+
+          {/* Preferred free text row */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1">
+              <p className="text-xs text-[#6B7280] mb-1">이상형</p>
+              <p className="text-sm text-[#111827] leading-relaxed line-clamp-3">
+                {store.preferredFreeText || "이상형 없음"}
               </p>
             </div>
             <button

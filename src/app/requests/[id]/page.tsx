@@ -197,9 +197,18 @@ export default function RequestDetailPage({
         <section>
           <h2 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">자기소개</h2>
           <div className="bg-[var(--bg)] rounded-2xl p-4">
-            <p className="text-sm text-[var(--text)] leading-relaxed">{requester.bio}</p>
+            <p className="text-sm text-[var(--text)] leading-relaxed whitespace-pre-wrap">{requester.bio}</p>
           </div>
         </section>
+
+        {requester.preferred_free_text && (
+          <section>
+            <h2 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">이상형</h2>
+            <div className="bg-[var(--bg)] rounded-2xl p-4">
+              <p className="text-sm text-[var(--text)] leading-relaxed whitespace-pre-wrap">{requester.preferred_free_text}</p>
+            </div>
+          </section>
+        )}
       </div>
 
       {showToast && (

@@ -10,7 +10,7 @@ import type { ProfileView } from "@/types/database";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const EDUCATION_OPTIONS = ["고등학교졸", "대학교재학", "대학교졸", "대학원재학", "대학원졸"];
+const EDUCATION_OPTIONS = ["고졸", "학사", "석사", "박사"];
 
 const CITIES = [
   "서울", "경기", "인천", "부산", "대구", "대전", "광주", "울산", "세종",
@@ -175,6 +175,7 @@ export default function EditProfilePage() {
   const [hobbies, setHobbies] = useState<string[]>([]);
   const [pet, setPet] = useState("");
   const [bio, setBio] = useState("");
+  const [preferredFreeText, setPreferredFreeText] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
 
   useEffect(() => {
@@ -206,6 +207,7 @@ export default function EditProfilePage() {
         setHobbies(profile.hobbies ?? []);
         setPet(profile.pet ?? "");
         setBio(profile.bio ?? "");
+        setPreferredFreeText(profile.preferred_free_text ?? "");
         setPhotos(profile.photos ?? []);
       } catch (err) {
         console.error(err);
@@ -280,6 +282,7 @@ export default function EditProfilePage() {
         hobbies,
         pet,
         bio,
+        preferred_free_text: preferredFreeText,
         photos,
       });
       router.push("/my");
@@ -476,6 +479,27 @@ export default function EditProfilePage() {
           </div>
         </section>
 
+        {/* 섹션4-1: 이상형 */}
+        <section>
+          <SectionTitle>이상형</SectionTitle>
+          <div className="flex flex-col gap-1.5">
+            <textarea
+              value={preferredFreeText}
+              onChange={(e) => setPreferredFreeText(e.target.value)}
+              placeholder="어떤 분을 만나고 싶은지 적어주세요 (20~300자)"
+              rows={5}
+              maxLength={300}
+              className="w-full px-4 py-3 rounded-2xl bg-[#F3F4F6] text-[15px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#111827] focus:bg-white transition-all border border-transparent resize-none"
+            />
+            <div className="flex justify-between">
+              {preferredFreeText.length > 0 && preferredFreeText.length < 20 ? (
+                <p className="text-xs text-[#DC2626]">{20 - preferredFreeText.length}자 더 입력해주세요</p>
+              ) : <span />}
+              <p className="text-xs text-[#9CA3AF]">{preferredFreeText.length}/300</p>
+            </div>
+          </div>
+        </section>
+
         {/* 섹션5: 사진 */}
         <section>
           <SectionTitle>사진</SectionTitle>
@@ -551,7 +575,7 @@ export default function EditProfilePage() {
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || uploading || bio.length < 20}
+            disabled={saving || uploading || bio.length < 20 || preferredFreeText.length < 20}
             className="w-full h-[56px] rounded-2xl bg-[#111827] text-white text-[16px] font-semibold tracking-[-0.01em] active:scale-[0.98] transition-transform disabled:opacity-25 disabled:cursor-not-allowed"
           >
             {saving ? "저장 중..." : "저장하기"}

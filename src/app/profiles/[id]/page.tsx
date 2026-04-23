@@ -191,11 +191,20 @@ export default function ProfileDetailPage({
         </section>
 
         <section>
-          <h2 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">자기소개 및 이상형</h2>
+          <h2 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">자기소개</h2>
           <div className="bg-[var(--bg)] rounded-2xl p-4">
-            <p className="text-sm text-[var(--text)] leading-relaxed">{profile.bio}</p>
+            <p className="text-sm text-[var(--text)] leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
           </div>
         </section>
+
+        {profile.preferred_free_text && (
+          <section>
+            <h2 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">이상형</h2>
+            <div className="bg-[var(--bg)] rounded-2xl p-4">
+              <p className="text-sm text-[var(--text)] leading-relaxed whitespace-pre-wrap">{profile.preferred_free_text}</p>
+            </div>
+          </section>
+        )}
       </div>
 
       {showSuccess && (

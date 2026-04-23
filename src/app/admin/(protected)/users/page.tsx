@@ -330,10 +330,10 @@ export default function AdminUsersPage() {
               <section>
                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">이상형</h4>
                 <dl className="divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
+                  <DlRow label="이상형 자유 기술" value={selected.preferred_free_text} />
                   <DlRow label="연령대" value={selected.preferred_age_min && selected.preferred_age_max ? `${selected.preferred_age_min}~${selected.preferred_age_max}년생` : null} />
                   <DlRow label="최소 키" value={selected.preferred_height_min ? `${selected.preferred_height_min}cm` : null} />
                   <DlRow label="거주지" value={selected.preferred_residence?.length ? selected.preferred_residence.join(', ') : null} />
-                  <DlRow label="추가 조건" value={selected.preferred_free_text} />
                 </dl>
               </section>
 
