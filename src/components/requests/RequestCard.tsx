@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import Button from "@/components/ui/Button";
 import CountdownTimer from "@/components/ui/CountdownTimer";
-import type { RequestWithRequester } from "@/types/database";
+import type { RequestWithRequester, DatingRequestStatus } from "@/types/database";
 
 interface RequestCardProps {
   request: RequestWithRequester;
@@ -12,6 +12,14 @@ interface RequestCardProps {
 function expiresAt(createdAt: string): string {
   return new Date(new Date(createdAt).getTime() + 24 * 60 * 60 * 1000).toISOString();
 }
+
+const STATUS_BADGE: Partial<Record<DatingRequestStatus, { label: string; className: string }>> = {
+  accepted: { label: "수락함", className: "bg-[#D1FAE5] text-[#065F46]" },
+  rejected: { label: "거절함", className: "bg-[#F3F4F6] text-[#6B7280]" },
+  expired: { label: "만료됨", className: "bg-[#F3F4F6] text-[#6B7280]" },
+  cancelled: { label: "취소됨", className: "bg-[#F3F4F6] text-[#6B7280]" },
+  cancelled_unpaid: { label: "결제만료", className: "bg-[#F3F4F6] text-[#6B7280]" },
+};
 
 export default function RequestCard({ request, onExpired }: RequestCardProps) {
   const requester = request.requester;
@@ -36,9 +44,16 @@ export default function RequestCard({ request, onExpired }: RequestCardProps) {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-sm text-[var(--text)]">
-          {requester.name}, {age}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <p className="font-semibold text-sm text-[var(--text)]">
+            {requester.name}, {age}
+          </p>
+          {STATUS_BADGE[request.status] && (
+            <span className={`inline-block px-1.5 py-0.5 rounded-md text-[10px] font-bold ${STATUS_BADGE[request.status]!.className}`}>
+              {STATUS_BADGE[request.status]!.label}
+            </span>
+          )}
+        </div>
         <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate">
           {requester.job_title} · {residence}
         </p>
