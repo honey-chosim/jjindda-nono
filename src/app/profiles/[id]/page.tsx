@@ -6,7 +6,7 @@ import Link from "next/link";
 import PhotoSwiper from "@/components/profiles/PhotoSwiper";
 import Modal from "@/components/ui/Modal";
 import { getProfileById } from "@/services/profileService";
-import { sendDatingRequest, hasUsedRequestToday, hasRequested, getAcceptedRequestId, getPendingRequestFrom } from "@/services/requestService";
+import { sendDatingRequest, hasUsedRequestToday, hasRequested, getAcceptedRequestId, getPendingRequestFrom, rejectRequest } from "@/services/requestService";
 import { getSupabaseClient } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import type { ProfileView } from "@/types/database";
@@ -28,6 +28,7 @@ export default function ProfileDetailPage({
   const [acceptedRequestId, setAcceptedRequestId] = useState<string | null>(null);
   const [pendingFromThem, setPendingFromThem] = useState<{ id: string } | null>(null);
   const [showAcceptModal, setShowAcceptModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -62,16 +63,28 @@ export default function ProfileDetailPage({
     if (!currentUserId || !pendingFromThem) return;
     setShowAcceptModal(false);
     try {
-      // "바로 수락하기" — 내가(target=B) 결제 주체가 됨. instant_accept_match RPC 경유.
-      const res = await fetch('/api/requests/instant-accept', {
+      // 일반 수락 — requester(A)가 결제 주체. /requests/[id] 와 동일 흐름.
+      const res = await fetch('/api/requests/accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestId: pendingFromThem.id }),
       });
-      if (!res.ok) throw new Error('instant-accept failed');
+      if (!res.ok) throw new Error('accept failed');
       router.push(`/match/${pendingFromThem.id}`);
     } catch (err) {
-      console.error("Failed to instant-accept request:", err);
+      console.error("Failed to accept request:", err);
+    }
+  }
+
+  async function handleRejectFromProfile() {
+    if (!currentUserId || !pendingFromThem) return;
+    setShowRejectModal(false);
+    try {
+      await rejectRequest(pendingFromThem.id, currentUserId);
+      setPendingFromThem(null);
+      router.push('/requests');
+    } catch (err) {
+      console.error("Failed to reject request:", err);
     }
   }
 
@@ -231,12 +244,20 @@ export default function ProfileDetailPage({
         ) : pendingFromThem ? (
           <div className="flex flex-col gap-2">
             <p className="text-center text-xs text-[var(--text-muted)]">이 분이 나에게 소개팅을 신청했어요!</p>
-            <button
-              onClick={() => setShowAcceptModal(true)}
-              className="w-full h-14 rounded-2xl bg-[var(--primary)] text-white text-base font-semibold hover:bg-[#1F2937] active:scale-[0.98] transition-all shadow-sm"
-            >
-              바로 수락하기
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowRejectModal(true)}
+                className="flex-1 h-14 rounded-2xl border border-[var(--border)] text-[var(--text)] text-base font-semibold hover:bg-gray-50 active:scale-[0.98] transition-all"
+              >
+                거절하기
+              </button>
+              <button
+                onClick={() => setShowAcceptModal(true)}
+                className="flex-1 h-14 rounded-2xl bg-[var(--primary)] text-white text-base font-semibold hover:bg-[#1F2937] active:scale-[0.98] transition-all shadow-sm"
+              >
+                수락하기
+              </button>
+            </div>
           </div>
         ) : usedToday || alreadyRequested ? (
           <div className="flex items-center justify-center gap-2 w-full h-14 rounded-2xl bg-gray-100 text-[var(--text-muted)]">
@@ -275,6 +296,15 @@ export default function ProfileDetailPage({
         confirmLabel="수락하기"
         cancelLabel="취소"
         onConfirm={handleAcceptFromProfile}
+      />
+      <Modal
+        isOpen={showRejectModal}
+        onClose={() => setShowRejectModal(false)}
+        title="소개팅 거절"
+        description={`${profile.name}님의 소개팅 신청을 거절하시겠습니까?`}
+        confirmLabel="거절하기"
+        cancelLabel="취소"
+        onConfirm={handleRejectFromProfile}
       />
     </div>
   );
