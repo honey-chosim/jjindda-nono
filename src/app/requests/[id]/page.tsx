@@ -250,6 +250,7 @@ export default function RequestDetailPage({
                 expiresAt={request.expires_at ?? new Date(new Date(request.created_at).getTime() + 24 * 60 * 60 * 1000).toISOString()}
                 onExpired={() => setIsExpired(true)}
                 compact
+                label="수락 마감까지"
               />
             </div>
             <div className="flex gap-3">
