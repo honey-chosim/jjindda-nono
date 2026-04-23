@@ -31,9 +31,9 @@ export async function POST(req: NextRequest) {
   const code = generateOtp()
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString()
 
-  // QA backdoor: 010-9988-77xx 번호는 항상 코드 999999, 실제 SMS 발송 skip.
+  // QA backdoor: 010-0000-xxxx 또는 010-9988-77xx 번호는 항상 코드 999999, 실제 SMS 발송 skip.
   // 실제 운영자도 이 prefix는 사용하지 않기로 함 (정책으로 금지).
-  const isQaTestPhone = /^010998877\d{2}$/.test(digits)
+  const isQaTestPhone = /^010998877\d{2}$/.test(digits) || /^0100000\d{4}$/.test(digits)
   const finalCode = isQaTestPhone ? '999999' : code
 
   // Upsert OTP into DB
