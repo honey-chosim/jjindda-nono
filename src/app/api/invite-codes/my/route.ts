@@ -29,7 +29,8 @@ function generateCode(): string {
   return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }
 
-// GET: 내가 발급한 코드 목록
+// GET: 내 활성 초대코드 (보통 1개). 재사용 가능한 코드라 한 행이 여러 invitee 에게 공유됨.
+//      비활성(이미 rotate 된) 코드는 referral history 보존을 위해 유지하지만 응답에는 포함 X.
 export async function GET(request: NextRequest) {
   const user = await getAuthUser(request)
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
@@ -38,30 +39,31 @@ export async function GET(request: NextRequest) {
     .from('invite_codes')
     .select('*')
     .eq('created_by', user.id)
+    .eq('is_active', true)
     .order('created_at', { ascending: false })
 
   if (error) return Response.json({ error: error.message }, { status: 500 })
   return Response.json(data)
 }
 
-// POST: 새 초대코드 발급 (1회 제한 — 미사용 코드 있으면 새로 못 만듦)
+// POST: 코드 재발급 — 기존 활성 코드를 모두 비활성화하고 새 코드 발급.
+//       기존 invite_codes 행은 절대 DELETE 하지 않는다 (referral history 보존).
+//       profiles.invite_code_used / profiles.referrer_id 는 그대로 유지되므로
+//       "내가 초대한 친구" 리스트는 깨지지 않는다.
 export async function POST(request: NextRequest) {
   const user = await getAuthUser(request)
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // 미사용 코드가 이미 있으면 거절
-  const { data: existing } = await supabaseAdmin
+  // 1. 본인의 모든 활성 코드를 비활성화 (history 보존을 위해 row 는 남김)
+  const { error: deactivateErr } = await supabaseAdmin
     .from('invite_codes')
-    .select('id')
+    .update({ is_active: false })
     .eq('created_by', user.id)
-    .is('used_by', null)
     .eq('is_active', true)
-    .limit(1)
 
-  if (existing && existing.length > 0) {
-    return Response.json({ error: '미사용 초대코드가 이미 있습니다' }, { status: 409 })
-  }
+  if (deactivateErr) return Response.json({ error: deactivateErr.message }, { status: 500 })
 
+  // 2. 새 8자 코드 발급
   const code = generateCode()
   const { data, error } = await supabaseAdmin
     .from('invite_codes')

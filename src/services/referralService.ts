@@ -106,70 +106,42 @@ export async function verifyReferralProfile(args: {
  * 내가 레퍼럴한 친구 전부 (검증 상태 무관).
  * 각 항목은 my_verified 플래그(=verified_by_referrer)를 포함하여 UI 에서 분기 가능.
  *
- * 2-step 쿼리: invite_codes.used_by 가 auth.users 를 가리키므로 PostgREST relationship 사용 불가.
+ * 한 코드를 여러 invitee 가 사용할 수 있으므로 invite_codes.used_by 로는
+ * 조회가 불가능하다. 대신 profiles.referrer_id (denormalized) 로 직접 조회.
  */
 export async function getMyReferredUsers(
   referrerId: string,
 ): Promise<Array<Profile & { my_verified: boolean }>> {
   const supabase = getRawSupabaseClient()
 
-  const { data: codes, error: codesErr } = await supabase
-    .from('invite_codes')
-    .select('used_by')
-    .eq('created_by', referrerId)
-    .not('used_by', 'is', null)
-
-  if (codesErr) throw codesErr
-
-  const inviteeIds = ((codes ?? []) as { used_by: string | null }[])
-    .map((c) => c.used_by)
-    .filter((id): id is string => !!id)
-  if (inviteeIds.length === 0) return []
-
-  const { data: profiles, error: profErr } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .in('id', inviteeIds)
+    .eq('referrer_id', referrerId)
 
-  if (profErr) throw profErr
-  return ((profiles ?? []) as Profile[]).map((p) => ({
+  if (error) throw error
+  return ((data ?? []) as Profile[]).map((p) => ({
     ...p,
     my_verified: !!p.verified_by_referrer,
   }))
 }
 
 /**
- * 내가 레퍼럴한 사람 중 아직 내가 검증하지 않은 (또는 재검증 필요한) invitee 목록.
- * invite_codes.created_by = me AND invite_codes.used_by 채워짐.
+ * 내가 레퍼럴한 사람 중 아직 내가 검증하지 않은 invitee 목록.
+ * profiles.referrer_id = me 인 사람 중 referral_verifications 에 처리 이력이 없는 것.
  */
 export async function getReferredUsersToVerify(referrerId: string): Promise<Profile[]> {
   const supabase = getRawSupabaseClient()
 
-  // Step 1: 내가 만든 초대코드 중 used_by가 있는 것들
-  const { data: codes, error: codesErr } = await supabase
-    .from('invite_codes')
-    .select('used_by')
-    .eq('created_by', referrerId)
-    .not('used_by', 'is', null)
-
-  if (codesErr) throw codesErr
-
-  const inviteeIds = ((codes ?? []) as { used_by: string | null }[])
-    .map((c) => c.used_by)
-    .filter((id): id is string => !!id)
-  if (inviteeIds.length === 0) return []
-
-  // Step 2: 해당 invitee들의 profile
   const { data: profiles, error: profErr } = await supabase
     .from('profiles')
     .select('*')
-    .in('id', inviteeIds)
+    .eq('referrer_id', referrerId)
 
   if (profErr) throw profErr
   const invitees = (profiles ?? []) as Profile[]
   if (invitees.length === 0) return []
 
-  // Step 3: 이미 처리된 invitee 제외 (referral_verifications에 record 있으면 done)
   const { data: verified } = await supabase
     .from('referral_verifications')
     .select('invitee_id')

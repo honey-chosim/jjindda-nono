@@ -79,12 +79,20 @@ export default function MyPage() {
   }, []);
 
   async function generateCode() {
+    const hasActive = inviteCodes.length > 0;
+    if (hasActive) {
+      const ok = window.confirm(
+        "새 코드로 변경됩니다. 이전 코드는 더 이상 사용 불가하지만, 이미 가입한 친구들과의 연결은 유지됩니다.\n\n재발급하시겠어요?",
+      );
+      if (!ok) return;
+    }
     setGeneratingCode(true);
     try {
       const res = await fetch('/api/invite-codes/my', { method: 'POST' });
       const data = await res.json();
       if (!res.ok) { alert(data.error); return; }
-      setInviteCodes((prev) => [data, ...prev]);
+      // GET 은 활성 코드만 반환하므로 새 코드 단일 항목으로 교체
+      setInviteCodes([data]);
     } finally {
       setGeneratingCode(false);
     }
@@ -234,7 +242,9 @@ export default function MyPage() {
               disabled={generatingCode}
               className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#111827] text-white disabled:opacity-40 active:scale-95 transition-all"
             >
-              {generatingCode ? "생성 중..." : "+ 코드 발급"}
+              {generatingCode
+                ? (inviteCodes.length > 0 ? "재발급 중..." : "생성 중...")
+                : (inviteCodes.length > 0 ? "재발급" : "+ 코드 발급")}
             </button>
           </div>
           {inviteCodes.length === 0 ? (
@@ -251,17 +261,15 @@ export default function MyPage() {
                     <div>
                       <p className="text-sm font-mono font-bold tracking-[0.15em] text-[#111827]">{c.code}</p>
                       <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                        {c.used_by ? "사용됨" : "미사용"} · {new Date(c.created_at).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })}
+                        활성 · {new Date(c.created_at).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })}
                       </p>
                     </div>
-                    {!c.used_by && (
-                      <button
-                        onClick={() => copyCode(c.code)}
-                        className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#F3F4F6] text-[#111827] active:scale-95 transition-all"
-                      >
-                        {copiedCode === c.code ? "복사됨!" : "복사"}
-                      </button>
-                    )}
+                    <button
+                      onClick={() => copyCode(c.code)}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#F3F4F6] text-[#111827] active:scale-95 transition-all"
+                    >
+                      {copiedCode === c.code ? "복사됨!" : "복사"}
+                    </button>
                   </div>
                 </Card>
               ))}

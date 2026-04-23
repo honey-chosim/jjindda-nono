@@ -7,7 +7,6 @@ export async function validateInviteCode(code: string): Promise<boolean> {
     .select('id')
     .eq('code', code.toUpperCase())
     .eq('is_active', true)
-    .is('used_by', null)
     .maybeSingle()
 
   if (error) throw error
