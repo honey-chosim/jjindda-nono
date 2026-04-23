@@ -55,6 +55,22 @@ export default function LoginPage() {
       });
       if (verifyError) throw verifyError;
 
+      // 신규 유저(프로필 없음)는 invite code 거쳐 가입해야 함
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (!profile) {
+          await supabase.auth.signOut();
+          setError("가입된 계정이 없습니다. 초대 코드로 가입해주세요.");
+          setTimeout(() => router.push("/"), 1500);
+          return;
+        }
+      }
+
       router.push("/profiles");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "인증에 실패했습니다");

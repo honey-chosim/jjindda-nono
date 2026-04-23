@@ -271,6 +271,13 @@ function Step2() {
         }
       }
 
+      // 신규 유저인데 invite code 입력 안 했으면 / 로 보내서 코드 받기 (consumeInviteCode 누락 방지)
+      const inviteCode = useOnboardingStore.getState().inviteCode;
+      if (!inviteCode) {
+        router.push("/");
+        return;
+      }
+
       router.push("/onboarding/3");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "인증에 실패했습니다");

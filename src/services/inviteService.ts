@@ -15,6 +15,7 @@ export async function validateInviteCode(code: string): Promise<boolean> {
 }
 
 export async function consumeInviteCode(code: string, userId: string): Promise<void> {
+  if (!code) throw new Error('초대 코드가 없습니다. 처음부터 다시 가입해주세요.')
   const supabase = getRawSupabaseClient()
 
   const { data: existing } = await supabase
@@ -24,7 +25,8 @@ export async function consumeInviteCode(code: string, userId: string): Promise<v
     .is('used_by', null)
     .maybeSingle()
 
-  if (!existing) return
+  // 시행착오 — silent return은 invite_codes.used_by 추적 누락의 원인. 항상 throw.
+  if (!existing) throw new Error('이미 사용된 코드이거나 유효하지 않습니다.')
 
   const { error } = await supabase
     .from('invite_codes')
